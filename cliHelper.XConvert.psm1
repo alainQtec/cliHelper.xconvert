@@ -34,11 +34,8 @@ class xconvert : System.ComponentModel.TypeConverter {
   static [string] Base32FromHex([string]$hexString) {
     return [System.Text.Encoding]::UTF8.GetString(([byte[]] -split ($hexString -replace '..', '0x$& ')))
   }
-  static [string] GuidFromHex([string]$hexString) {
-    return [System.Guid]::new(([byte[]] -split ($hexString -replace '..', '0x$& '))).ToString()
-  }
   static [string] ToString([byte[]]$Bytes) {
-    # We could do: $CharCodes = [int[]]$Bytes; [xconvert]::Tostring($CharCodes); but lots of data is lost when decoding back ...
+    # We could do: [xconvert]::Tostring([int[]]$bytes); but lots of data is lost when decoding back ...
     return [string][System.Convert]::ToBase64String($Bytes);
   }
   static [string[]] ToString([int[]]$CharCodes) {
@@ -166,12 +163,16 @@ class xconvert : System.ComponentModel.TypeConverter {
     return [System.Text.Encoding]::UTF8.GetString([xconvert]::BytesFromHex($guid.ToString().Replace('-', '')))
     # NOTE: This does not apply on real guids. This is just a way to reverse the ToGuid() method.
   }
-  static [guid] ToGuid([string]$InputText) {
+  static [guid] ToGuid([string]$text) {
     # Creates a string that passes guid regex checks (ie: not a real guid)
-    if ($InputText.Trim().Length -ne 16) {
+    if ($text.Trim().Length -ne 16) {
       throw [System.InvalidOperationException]::new('$InputText.Trim().Length Should Be exactly 16. Ex: [xconvert]::ToGuid([xgen]::RandomName(16))')
     }
-    return [guid]::new([System.BitConverter]::ToString([System.Text.Encoding]::UTF8.GetBytes($InputText)).Replace("-", "").ToLower().Insert(8, "-").Insert(13, "-").Insert(18, "-").Insert(23, "-"))
+    $IsHexString = [regex]::IsMatch($text, '^#?([a-f0-9]{6}|[a-f0-9]{3})$')
+    if ($IsHexString) {
+      return [System.Guid]::new(([byte[]] -split ($text -replace '..', '0x$& ')))
+    }
+    return [guid]::new([System.BitConverter]::ToString([System.Text.Encoding]::UTF8.GetBytes($text)).Replace("-", "").ToLower().Insert(8, "-").Insert(13, "-").Insert(18, "-").Insert(23, "-"))
   }
   [string[]] ToRomanNumeral([int[]]$Numbers) {
     [ValidateRange(1, 3999)][int[]]$Numbers = $Numbers
