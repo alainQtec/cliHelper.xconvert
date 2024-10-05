@@ -1,6 +1,6 @@
-# xconvert
+# [![xconver icon](/docs/img/favicons/favicon-150x150.png)](https://alainQtec.dev/clihelper-modules/xconvert)
 
-A module to convert stuff
+[xconvert]() is a module to convert stuff
 
 ## WIP
 
