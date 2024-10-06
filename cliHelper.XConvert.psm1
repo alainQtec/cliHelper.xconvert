@@ -463,7 +463,7 @@ class xconvert : System.ComponentModel.TypeConverter {
     return [xconvert]::FromPSObject($PSObject, $PSObject.PSObject.TypeNames[0])
   }
   static [System.Object] FromPSObject([PSCustomObject]$PSObject, [string]$typeName) {
-    # /!\ not working as expected /!\
+    # TODO: fix. /!\ not working as expected /!\
     $Type = [Type]::GetType($typeName, $false)
     if ($Type) {
       $Obj = [Activator]::CreateInstance($Type)
