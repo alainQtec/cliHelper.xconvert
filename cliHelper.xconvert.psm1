@@ -1,5 +1,5 @@
 using namespace System.Runtime.InteropServices
-using module Private/cliHelper.XConvert.Utils
+using module Private/cliHelper.xconvert.Utils
 #region    Classes
 enum Compression {
   Gzip
@@ -1269,8 +1269,8 @@ class xconvert : System.ComponentModel.TypeConverter {
 $script:localizedData = if ($null -ne (Get-Command Get-LocalizedData -ErrorAction SilentlyContinue)) {
   Get-LocalizedData -DefaultUICulture 'en-US'
 } else {
-  $dataFile = [System.IO.FileInfo]::new([IO.Path]::Combine((Get-Location), 'en-US', 'cliHelper.XConvert.strings.psd1'))
-  if (!$dataFile.Exists) { throw [System.IO.FileNotFoundException]::new("Unable to find the LocalizedData file: $dataFile", 'cliHelper.XConvert.strings.psd1') }
+  $dataFile = [System.IO.FileInfo]::new([IO.Path]::Combine((Get-Location), 'en-US', 'cliHelper.xconvert.strings.psd1'))
+  if (!$dataFile.Exists) { throw [System.IO.FileNotFoundException]::new("Unable to find the LocalizedData file: $dataFile", 'cliHelper.xconvert.strings.psd1') }
   [scriptblock]::Create("$([IO.File]::ReadAllText($dataFile))").Invoke()
 }
 

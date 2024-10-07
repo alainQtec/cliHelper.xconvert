@@ -1,10 +1,10 @@
 ﻿<#
 .SYNOPSIS
-    cliHelper.XConvert buildScript
+    cliHelper.xconvert buildScript
 .DESCRIPTION
-    A custom Psake buildScript for the module cliHelper.XConvert
+    A custom Psake buildScript for the module cliHelper.xconvert.
 .LINK
-    https://github.com/alainQtec/cliHelper.XConvert/blob/main/build.ps1
+    https://github.com/alainQtec/cliHelper.xconvert/blob/main/build.ps1
 .EXAMPLE
     Running ./build.ps1 will only "Init, Compile & Import" the module; That's it, no tests.
     To run tests Use:
@@ -44,8 +44,8 @@ Begin {
   [Environment]::SetEnvironmentVariable('IsAC', $(if (![string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable('GITHUB_WORKFLOW'))) { '1' } else { '0' }), [System.EnvironmentVariableTarget]::Process)
   [Environment]::SetEnvironmentVariable('IsCI', $(if (![string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable('TF_BUILD'))) { '1' }else { '0' }), [System.EnvironmentVariableTarget]::Process)
   [Environment]::SetEnvironmentVariable('RUN_ID', $(if ([bool][int]$env:IsAC -or $env:CI -eq "true") { [Environment]::GetEnvironmentVariable('GITHUB_RUN_ID') }else { [Guid]::NewGuid().Guid.substring(0, 21).replace('-', [string]::Join('', (0..9 | Get-Random -Count 1))) + '_' }), [System.EnvironmentVariableTarget]::Process);
-  $dataFile = [System.IO.FileInfo]::new([IO.Path]::Combine($PSScriptRoot, 'en-US', 'cliHelper.XConvert.strings.psd1'))
-  if (!$dataFile.Exists) { throw [System.IO.FileNotFoundException]::new('Unable to find the LocalizedData file.', 'cliHelper.XConvert.strings.psd1') }
+  $dataFile = [System.IO.FileInfo]::new([IO.Path]::Combine($PSScriptRoot, 'en-US', 'cliHelper.xconvert.strings.psd1'))
+  if (!$dataFile.Exists) { throw [System.IO.FileNotFoundException]::new('Unable to find the LocalizedData file.', 'cliHelper.xconvert.strings.psd1') }
   $script:localizedData = [scriptblock]::Create("$([IO.File]::ReadAllText($dataFile))").Invoke() # same as "Get-LocalizedData -DefaultUICulture 'en-US'" but the cmdlet is not always installed
   #region    ScriptBlocks
   $script:PSake_ScriptBlock = [scriptblock]::Create({
@@ -72,13 +72,15 @@ Begin {
         $PathSeperator = [IO.Path]::PathSeparator
         $DirSeperator = [IO.Path]::DirectorySeparatorChar
         if ([Environment]::GetEnvironmentVariable($env:RUN_ID + 'CommitMessage') -match "!verbose") {
-          $Verbose = @{Verbose = $True }
+          $Verbose = @{ Verbose = $True }
         }
         $null = @($tests, $Verbose, $TestFile, $outputDir, $outputModDir, $outputModVerDir, $lines, $DirSeperator, $PathSeperator)
-        $null = Invoke-Command -NoNewScope -ScriptBlock {
-          $l = [IO.File]::ReadAllLines([IO.Path]::Combine($([Environment]::GetEnvironmentVariable($env:RUN_ID + 'BuildScriptPath')), 'build.ps1'))
+        $null = Invoke-Command -NoNewScope -Script {
+          $l = [IO.File]::ReadAllLines([IO.Path]::Combine($([Environment]::GetEnvironmentVariable($env:RUN_ID + 'BuildScriptPath')), 'build.ps1'));
           $t = New-Item $([IO.Path]::GetTempFileName().Replace('.tmp', '.ps1'))
-          Set-Content -Path "$($t.FullName)" -Value $l[$l.IndexOf('    #region    BuildHelper_Functions')..$l.IndexOf('    #endregion BuildHelper_Functions')] -Encoding UTF8 | Out-Null; . $t;
+          $s = $l.IndexOf($l.Where({ $_.trim().StartsWith("#region    BuildHelper_Functions") })[0].TrimEnd())
+          $e = $l.IndexOf($l.Where({ $_.trim().StartsWith("#endregion BuildHelper_Functions") })[0].TrimEnd())
+          Set-Content -Path "$($t.FullName)" -Value $l[$s .. $e] -Encoding UTF8 | Out-Null; . $t;
           Remove-Item -Path $t.FullName
         }
       }
@@ -96,9 +98,10 @@ Begin {
         Write-Verbose "$((Get-ChildItem Env: | Where-Object {$_.Name -match "^(BUILD_|SYSTEM_|BH)"} | Sort-Object Name | Format-Table Name,Value -AutoSize | Out-String).Trim())"
         Write-Verbose "Module Build version: $BuildNumber"
       } -description 'Initialize build environment'
-
-      Task clean -depends Init {
+      Task -name clean -depends Init {
         $Host.UI.WriteLine()
+        $modules = Get-Module -name $ProjectName -ListAvailable -ErrorAction Ignore
+        $modules | Remove-Module -Force; $modules | Uninstall-Module -ErrorAction Ignore -Force
         Remove-Module $ProjectName -Force -ErrorAction SilentlyContinue
         if (Test-Path -Path $outputDir -PathType Container -ErrorAction SilentlyContinue) {
           Write-Verbose "Cleaning Previous build Output ..."
@@ -194,7 +197,7 @@ Begin {
             $commitVer = $commParsed.Matches.Value.Trim().Replace('v', '')
           }
           $current_build_version = $CurrentVersion = (Get-Module $([Environment]::GetEnvironmentVariable($env:RUN_ID + 'ProjectName'))).Version
-          $Latest_Module_Verion = Get-LatestModuleVersion -Name ([Environment]::GetEnvironmentVariable($env:RUN_ID + 'ProjectName')) -Source PsGallery
+          $Latest_Module_Verion = Get-LatestModuleVersion -name ([Environment]::GetEnvironmentVariable($env:RUN_ID + 'ProjectName')) -Source PsGallery
           "Module Current version on the PSGallery: $Latest_Module_Verion"
           $galVerSplit = "$Latest_Module_Verion".Split('.')
           $nextGalVer = [System.Version](($galVerSplit[0..($galVerSplit.Count - 2)] -join '.') + '.' + ([int]$galVerSplit[-1] + 1))
@@ -245,7 +248,7 @@ Begin {
           try {
             [ValidateNotNullOrWhiteSpace()][string]$versionToDeploy = $versionToDeploy.ToString()
             $manifest = Import-PowerShellDataFile -Path $([Environment]::GetEnvironmentVariable($env:RUN_ID + 'PSModuleManifest'))
-            $latest_Github_release = Invoke-WebRequest "https://api.github.com/repos/alainQtec/cliHelper.XConvert/releases/latest" | ConvertFrom-Json
+            $latest_Github_release = Invoke-WebRequest "https://api.github.com/repos/alainQtec/cliHelper.xconvert/releases/latest" | ConvertFrom-Json
             $latest_Github_release = [PSCustomObject]@{
               name = $latest_Github_release.name
               ver  = [version]::new($latest_Github_release.tag_name.substring(1))
@@ -391,10 +394,6 @@ Begin {
       [ValidateNotNullOrEmpty()][Alias('Prefix', 'RUN_ID')]
       [String]$VarNamePrefix
     )
-
-    begin {
-      Resolve-Module dotEnv
-    }
     Process {
       if (![bool][int]$env:IsAC) {
         $LocEnvFile = [IO.FileInfo]::New([IO.Path]::GetFullPath([IO.Path]::Combine($Path, '.env')))
@@ -1267,6 +1266,7 @@ Process {
     Get-PSakeScriptTasks -buildFile $Psake_BuildFile.FullName | Sort-Object -Property Name | Format-Table -Property Name, Description, Alias, DependsOn
     exit 0
   }
+  Resolve-Module -Name 'cliHelper.env' -Verbose:$false
   Set-BuildVariables -Path $PSScriptRoot -Prefix $env:RUN_ID
   Write-EnvironmentSummary "Build started"
   $security_protocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::SystemDefault
@@ -1368,7 +1368,7 @@ Process {
     # Import Module
     if ($Task -contains 'Import' -and $psake.build_success) {
       Write-Heading "Import $ModuleName to local scope"
-      Invoke-CommandWithLog { Import-Module $ModuleName }
+      Import-Module $ModuleName
     }
     Write-Heading "CleanUp: Uninstall the test module, and delete the LocalPSRepo"
     # Remove Module

@@ -1,27 +1,41 @@
 # [![xconver icon](/docs/img/favicons/favicon-150x150.png)](https://alainQtec.dev/clihelper-modules/xconvert)
 
-[xconvert]() is a module to convert stuff
+<p><b><a href="https://powershellgallery.com/packages/cliHelper.xconvert">xconvert</a></b> - version <b>0.1.0 α</b></p>
 
-## WIP
+An all-in-one module to convert files and object types.
 
-- [x] Add Private /utility classes
-- [ ] Add Public functions
+<p>
+<a href="cliHelper.xconvert.psm1">[xconvert]</a> is like the builtin <a href="https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-convert">[system.convert]</a> but extended.
+</p>
 
-  _Creating all functions for each method in [xconvert] might get tedious
-  overtime_, so _only functions for Common format conversions will be created_.
+**⬇️ Install:**
+
+```PowerShell
+Install-Module cliHelper.xconvert
+```
+
+---
+
+**🚧 WIP:** This is still version alpha, so alot of stuff is'nt done yet.
+
+Here's the progress list:
+
+- [x] Added main class (90%)
+- [x] Added Private /utility classes
+- [x] Add Public function(s)
+
+  `Note`: [This module intentionally uses 1 huge main class](). _Creating all
+  functions for each method in [xconvert] might get tedious overtime_, so _only
+  functions for **Common format conversions** will be created_. **i.e**:
 
   - [ ] functions to convert between file formats (CSV, JSON, XML ...)
   - [ ] functions convert data type to another (string, integer, datetime ...)
   - [ ] functions to convert encodings (ASCII, UTF-8, base32 ...)
   - [ ] functions to convert between visualization formats
 
-## Note
+---
 
-This module intentionally uses 1 huge main class.
-
-`[xconvert]` is like `[convert]` but extended.
-
-## FAQs
+#### (‘•.•’)? FAQs
 
 <details>
   <summary>Why build this?</summary>
@@ -36,7 +50,7 @@ This module intentionally uses 1 huge main class.
   `Example`: Converting excel Files often result in
   [corrupted files](https://forums.powershell.org/t/converting-excel-files-in-powershell/10807).
 
-This is like AIO custom solution to extend the built-in functionality.
+This is like an AIO custom solution to extend the built-in functionality.
 
 </details>
 
