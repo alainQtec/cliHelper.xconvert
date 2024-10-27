@@ -151,6 +151,24 @@ class xgen {
     }
     return $Output
   }
+  static [hashtable[]] FindHashKeyValue($PropertyName, $Ast) {
+    return [xgen]::FindHashKeyValue($PropertyName, $Ast, @())
+  }
+  static [hashtable[]] FindHashKeyValue($PropertyName, $Ast, [string[]]$CurrentPath) {
+    if ($PropertyName -eq ($CurrentPath -Join '.') -or $PropertyName -eq $CurrentPath[-1]) {
+      return $Ast | Add-Member NoteProperty HashKeyPath ($CurrentPath -join '.') -PassThru -Force | Add-Member NoteProperty HashKeyName ($CurrentPath[-1]) -PassThru -Force
+    }; $r = @()
+    if ($Ast.PipelineElements.Expression -is [System.Management.Automation.Language.HashtableAst]) {
+      $KeyValue = $Ast.PipelineElements.Expression
+      ForEach ($KV in $KeyValue.KeyValuePairs) {
+        $result = [xgen]::FindHashKeyValue($PropertyName, $KV.Item2, @($CurrentPath + $KV.Item1.Value))
+        if ($null -ne $result) {
+          $r += $result
+        }
+      }
+    }
+    return $r
+  }
   static [string] EscapeSpecialCharacters([string]$str) {
     if ([string]::IsNullOrWhiteSpace($str)) {
       return $str
