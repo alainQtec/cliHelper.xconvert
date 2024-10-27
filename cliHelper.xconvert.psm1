@@ -27,6 +27,7 @@ enum dateFormat {
 # .DESCRIPTION
 #   Extended version of built in [convert] class
 class xconvert : System.ComponentModel.TypeConverter {
+  static [PsObject] $localizedData = [xconvert]::GetLocalizedData()
   xconvert() {}
   static [string] Base32ToHex([string]$base32String) {
     return [System.BitConverter]::ToString([System.Text.Encoding]::UTF8.GetBytes($base32String)).Replace("-", "").ToLower()
@@ -1259,20 +1260,17 @@ class xconvert : System.ComponentModel.TypeConverter {
     if ($null -ne $ms) { $ms.Flush(); $ms.Close(); $ms.Dispose() } else { Write-Warning "[x] MemoryStream was Not closed!" };
     return $arr;
   }
-  [string]hidden static Reverse([string]$text) {
+  static [PsObject] GetLocalizedData() {
+    $dataFile = [System.IO.FileInfo]::new([IO.Path]::Combine($PSScriptRoot, [System.Threading.Thread]::CurrentThread.CurrentCulture.Name, 'cliHelper.xconvert.strings.psd1'))
+    if (!$dataFile.Exists) { throw [System.IO.FileNotFoundException]::new("Unable to find the LocalizedData file: $dataFile", 'cliHelper.xconvert.strings.psd1') }
+    return [scriptblock]::Create("$([IO.File]::ReadAllText($dataFile))").Invoke()
+  }
+  static hidden [string] Reverse([string]$text) {
     [char[]]$array = $text.ToCharArray(); [array]::Reverse($array);
     return [String]::new($array);
   }
 }
 #endregion Classes
-
-$script:localizedData = if ($null -ne (Get-Command Get-LocalizedData -ErrorAction SilentlyContinue)) {
-  Get-LocalizedData -DefaultUICulture 'en-US'
-} else {
-  $dataFile = [System.IO.FileInfo]::new([IO.Path]::Combine((Get-Location), 'en-US', 'cliHelper.xconvert.strings.psd1'))
-  if (!$dataFile.Exists) { throw [System.IO.FileNotFoundException]::new("Unable to find the LocalizedData file: $dataFile", 'cliHelper.xconvert.strings.psd1') }
-  [scriptblock]::Create("$([IO.File]::ReadAllText($dataFile))").Invoke()
-}
 
 # Types that will be available to users when they import the module.
 $typestoExport = @(
@@ -1318,4 +1316,4 @@ foreach ($file in $($Public, $Private)) {
   }
 }
 
-Export-ModuleMember -Function $Public.BaseName -Variable 'localizedData' -Verbose
+Export-ModuleMember -Function $Public.BaseName -Verbose
