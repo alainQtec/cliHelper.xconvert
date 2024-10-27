@@ -27,7 +27,7 @@ enum dateFormat {
 # .DESCRIPTION
 #   Extended version of built in [convert] class
 class xconvert : System.ComponentModel.TypeConverter {
-  static [PsObject] $localizedData = [xconvert]::GetLocalizedData()
+  static [PsObject] $LocalizedData = (Get-xconvertdata)
   xconvert() {}
   static [string] Base32ToHex([string]$base32String) {
     return [System.BitConverter]::ToString([System.Text.Encoding]::UTF8.GetBytes($base32String)).Replace("-", "").ToLower()
@@ -1260,17 +1260,89 @@ class xconvert : System.ComponentModel.TypeConverter {
     if ($null -ne $ms) { $ms.Flush(); $ms.Close(); $ms.Dispose() } else { Write-Warning "[x] MemoryStream was Not closed!" };
     return $arr;
   }
-  static [PsObject] GetLocalizedData() {
-    $dataFile = [System.IO.FileInfo]::new([IO.Path]::Combine($PSScriptRoot, [System.Threading.Thread]::CurrentThread.CurrentCulture.Name, 'cliHelper.xconvert.strings.psd1'))
-    if (!$dataFile.Exists) { throw [System.IO.FileNotFoundException]::new("Unable to find the LocalizedData file: $dataFile", 'cliHelper.xconvert.strings.psd1') }
-    return [scriptblock]::Create("$([IO.File]::ReadAllText($dataFile))").Invoke()
-  }
   static hidden [string] Reverse([string]$text) {
     [char[]]$array = $text.ToCharArray(); [array]::Reverse($array);
     return [String]::new($array);
   }
 }
 #endregion Classes
+
+#region    functions
+function script:Get-xconvertdata {
+  # .SYNOPSIS
+  # Gets values for [xconvert]::LocalizedData
+  [CmdletBinding()]
+  [OutputType([PsObject])]
+  param (
+    [Parameter(Position = 0, Mandatory = $false, ValueFromPipeline = $true)]
+    [ValidateNotNullOrWhiteSpace()]
+    [string]$Path,
+
+    [Parameter(Position = 1, Mandatory = $false)]
+    [AllowNull()][Alias('Property')]
+    [string]$PropertyName = $null
+  )
+  begin {
+    if (!$PSBoundParameters.ContainsKey("Path")) {
+      # [void][Directory]::SetCurrentDirectory($PSScriptRoot)
+      $CultureName = [System.Threading.Thread]::CurrentThread.CurrentCulture.Name
+      $Path = [IO.Path]::Combine($PSScriptRoot, $CultureName, 'cliHelper.xconvert.strings.psd1')
+    }
+  }
+  process {
+    if ([string]::IsNullOrWhiteSpace($PropertyName)) {
+      $null = Get-Item -Path $Path -ErrorAction Stop
+      $data = New-Object PsObject; $text = [IO.File]::ReadAllText("$Path")
+      $data = [scriptblock]::Create("$text").Invoke()
+      return $data
+    }
+    $Tokens = $Null; $ParseErrors = $Null
+    # search the Manifest root properties, and also the nested hashtable properties.
+    if ([IO.Path]::GetExtension($_) -ne ".psd1") { throw "Path must point to a .psd1 file" }
+    if (!(Test-Path $Path)) {
+      $Error_params = @{
+        ExceptionName    = "ItemNotFoundException"
+        ExceptionMessage = "Can't find file $Path"
+        ErrorId          = "PathNotFound,Metadata\Import-Metadata"
+        Caller           = $PSCmdlet
+        ErrorCategory    = "ObjectNotFound"
+      }
+      Write-TerminatingError @Error_params
+    }
+    $AST = [Parser]::ParseFile($Path, [ref]$Tokens, [ref]$ParseErrors)
+    $KeyValue = $Ast.EndBlock.Statements
+    $KeyValue = @([xgen]::FindHashKeyValue($PropertyName, $KeyValue))
+    if ($KeyValue.Count -eq 0) {
+      $Error_params = @{
+        ExceptionName    = "ItemNotFoundException"
+        ExceptionMessage = "Can't find '$PropertyName' in $Path"
+        ErrorId          = "PropertyNotFound,Metadata\Get-Metadata"
+        Caller           = $PSCmdlet
+        ErrorCategory    = "ObjectNotFound"
+      }
+      Write-TerminatingError @Error_params
+    }
+    if ($KeyValue.Count -gt 1) {
+      $SingleKey = @($KeyValue | Where-Object { $_.HashKeyPath -eq $PropertyName })
+      if ($SingleKey.Count -gt 1) {
+        $Error_params = @{
+          ExceptionName    = "System.Reflection.AmbiguousMatchException"
+          ExceptionMessage = "Found more than one '$PropertyName' in $Path. Please specify a dotted path instead. Matching paths include: '{0}'" -f ($KeyValue.HashKeyPath -join "', '")
+          ErrorId          = "AmbiguousMatch,Metadata\Get-Metadata"
+          Caller           = $PSCmdlet
+          ErrorCategory    = "InvalidArgument"
+        }
+        Write-TerminatingError @Error_params
+      } else {
+        $KeyValue = $SingleKey
+      }
+    }
+    $KeyValue = $KeyValue[0]
+    # $KeyValue.SafeGetValue()
+    return $KeyValue
+  }
+}
+#endregion functions
 
 # Types that will be available to users when they import the module.
 $typestoExport = @(
