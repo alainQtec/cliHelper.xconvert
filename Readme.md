@@ -1,11 +1,11 @@
-# [![xconver icon](/docs/img/favicons/favicon-150x150.png)](https://alainQtec.dev/clihelper-modules/xconvert)
+# [![✖convert](/docs/img/favicons/favicon-150x150.png)](https://alainQtec.dev/clihelper-modules/xconvert)
 
-<p><b><a href="https://powershellgallery.com/packages/cliHelper.xconvert">xconvert</a></b> - version <b>0.1.0 α</b></p>
+<p><b><a href="https://powershellgallery.com/packages/cliHelper.xconvert">✖convert</a></b> - version <b>0.1.0 α</b></p>
 
 An all-in-one module to convert files and object types.
 
 <p>
-<a href="cliHelper.xconvert.psm1">[xconvert]</a> is like the builtin <a href="https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-convert">[system.convert]</a> but extended.
+<a href="cliHelper.xconvert.psm1">[✖convert]</a> is like the builtin <a href="https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-convert">[system.convert]</a> but extended.
 </p>
 
 **⬇️ Install:**
