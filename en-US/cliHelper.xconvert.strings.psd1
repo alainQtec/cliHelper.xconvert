@@ -1,11 +1,11 @@
 ﻿@{
   ModuleName    = 'cliHelper.xconvert'
-  ModuleVersion = [System.Management.Automation.SemanticVersion]::new(0, 1, 1)
+  ModuleVersion = [System.Management.Automation.SemanticVersion]::new(0, 1, 2)
   ReleaseNotes  = @"
 # Changelog`n`n
 
-- fixed LocalisedData not being found
-- more in utility class
+- Now [xconvert]::LocalizedData works anywhere.
+- Added encoder/decoder utility classes: Base85, Base58 and Base16
 
 `n`n***`n`n## Manual install guide`n`n
 1. [Click here](https://github.com/alainQtec/cliHelper.xconvert/releases/download/v<versionToDeploy>/cliHelper.xconvert.zip) to download the *PsImport.zip* file attached to the release.
