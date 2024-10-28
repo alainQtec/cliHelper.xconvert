@@ -1252,7 +1252,6 @@ class xconvert : System.ComponentModel.TypeConverter {
   [System.TimeSpan[]] ToTimeSpan([string[]]$timespanStr) {
     return ($timespanStr | Select-Object *, @{name = 'Hour'; Expression = { $_.Split(":")[0] } }, @{name = 'Minute'; Expression = { $_.Split(":")[1] } }, @{name = 'Second'; Expression = { $_.Split(":")[2] } } | Select-Object @{n = 'timeSpan'; e = { New-TimeSpan -Hours $_.Hour -Minutes $_.Minute -Seconds $_.Second } }).timeSpan
   }
-
   static [byte[]] StreamToByteArray([System.IO.Stream]$Stream) {
     $ms = [System.IO.MemoryStream]::new();
     $Stream.CopyTo($ms);
