@@ -1265,6 +1265,8 @@ class xconvert : System.ComponentModel.TypeConverter {
     return [String]::new($array);
   }
 }
+# Install   ....
+# Uninstall: cmd.exe /c del /f/q "%USERPROFILE%\AppData\Roaming\Microsoft\Windows\SendTo\xconvert.bat"
 #endregion Classes
 
 #region    functions
@@ -1346,6 +1348,7 @@ function script:Get-xconvertdata {
 
 # Types that will be available to users when they import the module.
 $typestoExport = @(
+  [EncodKit],
   [xconvert],
   [xgen]
 )
