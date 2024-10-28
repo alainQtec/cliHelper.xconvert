@@ -1,6 +1,6 @@
 # [![✖convert](/docs/img/favicons/favicon-150x150.png)](https://alainQtec.dev/clihelper-modules/xconvert)
 
-<p><b><a href="https://powershellgallery.com/packages/cliHelper.xconvert">✖convert</a></b> - version <b>0.1.0 α</b></p>
+<p><b><a href="https://powershellgallery.com/packages/cliHelper.xconvert">✖convert</a></b> - version <b>0.1.2</b></p>
 
 An all-in-one module to convert files and object types.
 
@@ -14,26 +14,10 @@ An all-in-one module to convert files and object types.
 Install-Module cliHelper.xconvert
 ```
 
----
+Note: this is **🚧 WIP**. Its usable, but alot of cool stuff are not yet
+implemented.
 
-**🚧 WIP:** This is still version alpha, so alot of stuff is'nt done yet.
-
-Here's the progress list:
-
-- [x] Added main class (90%)
-- [x] Added Private /utility classes
-- [x] Add Public function(s)
-
-  `Note`: [This module intentionally uses 1 huge main class](). _Creating all
-  functions for each method in [xconvert] might get tedious overtime_, so _only
-  functions for **Common format conversions** will be created_. **i.e**:
-
-  - [ ] functions to convert between file formats (CSV, JSON, XML ...)
-  - [ ] functions convert data type to another (string, integer, datetime ...)
-  - [ ] functions to convert encodings (ASCII, UTF-8, base32 ...)
-  - [ ] functions to convert between visualization formats
-
----
+Read the progress list [here](./docs/Readme.md)
 
 #### (‘•.•’)? FAQs
 
@@ -78,4 +62,4 @@ gives this output
 ## License
 
 This project is licensed under the MIT License. See the
-[License](https://alainQtec.MIT-license.org) file for details.
+[License](https://alain.MIT-license.org) file for details.
