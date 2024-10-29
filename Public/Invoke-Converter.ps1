@@ -4,28 +4,37 @@ function Invoke-Converter {
   # .DESCRIPTION
   #   Creates a custom Converter object.
   # .EXAMPLE
-  #  $der_Pass = "HelloWorld" | Xconvert ToBase32String, ToObfuscated, ToSecurestring
+  #  $enc_Pass = "HelloWorld" | xconvert -m ToBase32String, ToObfuscated, ToSecurestring
+  #  $txt_Pass = $enc_Pass | xconvert -m ToString, FromObfuscated, FromBase32String, ToInt32, Tostring
+  #  $txt_Pass | Should -Be "HelloWorld"
   #  Thats chaining methods
-  [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = '')]
   [CmdletBinding()]
-  [Alias('Xconvert', 'New-Converter')]
+  [Alias('xconvert')]
   [OutputType([xconvert], [object], [object[]])]
   param (
     [Parameter(Position = 0, ValueFromPipeline = $true)]
-    [string[]]$InputObject,
+    [Alias('i')][ValidateNotNullOrEmpty()]
+    $object,
 
     [Parameter(Position = 1)]
-    [string[]]$MethodName,
-
-    [Parameter(Position = 2, ValueFromRemainingArguments = $true)]
-    [Object[]]$Arguments
+    [Alias('m')][ValidateNotNullOrEmpty()]
+    [string[]]$Method
   )
-
   begin {
-    $result = [xconvert]::new()
+    $c = [xconvert]::new()
   }
-  process {}
+  process {
+    if ($object) {
+      $r = $object
+      $Method.ForEach({
+          $r = $c::$_($r)
+        }
+      )
+    } else {
+      $r = $c
+    }
+  }
   end {
-    return $result
+    return $r
   }
 }
