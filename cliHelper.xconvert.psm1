@@ -1349,6 +1349,7 @@ function script:Get-xconvertdata {
 $typestoExport = @(
   [EncodKit],
   [xconvert],
+  [Base85],
   [xgen]
 )
 $TypeAcceleratorsClass = [psobject].Assembly.GetType('System.Management.Automation.TypeAccelerators')
@@ -1390,4 +1391,4 @@ foreach ($file in $($Public, $Private)) {
   }
 }
 
-Export-ModuleMember -Function $Public.BaseName -Verbose
+Export-ModuleMember -Function $Public.BaseName -Alias * -Verbose
