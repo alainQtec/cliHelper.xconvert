@@ -62,6 +62,8 @@ ex: do stuff like
 
 ```PowerShell
 $der_Pass = "HelloWorld" | Xconvert ToBase32String, ToObfuscated, ToSecurestring
+$txt_Pass = $enc_Pass | xconvert -m ToString, FromObfuscated, FromBase32String, ToInt32, Tostring
+$txt_Pass | Should -Be "HelloWorld"
 ```
 
 Advanced? yeah you can get nuts with this cmdlet 🤓
