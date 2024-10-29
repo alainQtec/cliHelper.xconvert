@@ -1,4 +1,5 @@
 ﻿using namespace System.IO
+using namespace System.Text
 
 enum EncodingName {
   Base85
@@ -214,28 +215,115 @@ class Base16 : EncodingBase {
 #   $d = [Base32]::GetString([Base32]::Decode($e))
 #   ($d -eq "Hello world again!") -should be $true
 class Base32 : EncodingBase {
-  static [string] $alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-
-  static [string] Encode([string]$text) {
-    return [Base32]::Encode([System.Text.Encoding]::ASCII.GetBytes($text))
+  static [string] $charset = "abcdefghijklmnopqrstuvwxyz234567"
+  static [string] Encode([byte[]]$bytes) {
+    return [Base32]::Encode($bytes, $false)
   }
-  static [string] Encode([byte[]]$ba) {
-    $encoded = $null; $Timer = [System.Diagnostics.Stopwatch]::StartNew();
-    Write-Verbose "[Base32] Encoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
-    #
-    # Base32 encode logic & code goes here
-    #
-    Write-Verbose "[Base32] Encoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
-    return $encoded
+  static [string] Encode([string]$String) {
+    return [Base32]::Encode($String, $false)
   }
-  static [byte[]] Decode([string]$text) {
-    $decoded = $null; $Timer = [System.Diagnostics.Stopwatch]::StartNew();
-    Write-Verbose "[Base32] Decoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
-    #
-    # Base32 decode logic & code goes here
-    #
-    Write-Verbose "[Base32] Decoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
-    return $decoded
+  static [string] Encode([byte[]]$bytes, [bool]$Formatt) {
+    return [Base32]::Encode([MemoryStream]::New($bytes), $Formatt)
+  }
+  static [string] Encode([string]$String, [bool]$Formatt) {
+    return [Base32]::Encode([Encoding]::ASCII.GetBytes($String), $Formatt)
+  }
+  static [string] Encode([Stream]$Stream, [bool]$Formatt) {
+    # .EXAMPLE
+    # $b32 = [Base32]::Encode("hello world!")
+    # $text = [String]::Join([string]::Empty, [Base32]::ToString([int[]][Base32]::FromBase32String($b32)))
+    $BinaryReader = [BinaryReader]::new($Stream); $B32CHARSET = [Base32]::charset
+    $Base32Output = [StringBuilder]::new(); $result = [string]::Empty
+    # Write-Verbose "[Base32] Encoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
+    Try {
+      While ([byte[]]$BytesRead = $BinaryReader.ReadBytes(5)) {
+        [System.Boolean]$AtEnd = ($BinaryReader.BaseStream.Length -eq $BinaryReader.BaseStream.Position)
+        [System.UInt16]$ByteLength = $BytesRead.Length
+        if ($ByteLength -lt 5) {
+          [byte[]]$WorkingBytes = , 0x00 * 5
+          [System.Buffer]::BlockCopy($BytesRead, 0, $WorkingBytes, 0, $ByteLength)
+          [Array]::Resize([ref]$BytesRead, 5)
+          [System.Buffer]::BlockCopy($WorkingBytes, 0, $BytesRead, 0, 5)
+        }
+        [System.Char[]]$B32Chars = , 0x00 * 8
+        [System.Char[]]$B32Chunk = , "_" * 8
+        $B32Chars[0] = ($B32CHARSET[($BytesRead[0] -band 0xF8) -shr 3])
+        $B32Chars[1] = ($B32CHARSET[(($BytesRead[0] -band 0x07) -shl 2) -bor (($BytesRead[1] -band 0xC0) -shr 6)])
+        $B32Chars[2] = ($B32CHARSET[($BytesRead[1] -band 0x3E) -shr 1])
+        $B32Chars[3] = ($B32CHARSET[(($BytesRead[1] -band 0x01) -shl 4) -bor (($BytesRead[2] -band 0xF0) -shr 4)])
+        $B32Chars[4] = ($B32CHARSET[(($BytesRead[2] -band 0x0F) -shl 1) -bor (($BytesRead[3] -band 0x80) -shr 7)])
+        $B32Chars[5] = ($B32CHARSET[($BytesRead[3] -band 0x7C) -shr 2])
+        $B32Chars[6] = ($B32CHARSET[(($BytesRead[3] -band 0x03) -shl 3) -bor (($BytesRead[4] -band 0xE0) -shr 5)])
+        $B32Chars[7] = ($B32CHARSET[$BytesRead[4] -band 0x1F])
+        [Array]::Copy($B32Chars, $B32Chunk, ([Math]::Ceiling(($ByteLength / 5) * 8)))
+        if ($BinaryReader.BaseStream.Position % 8 -eq 0 -and $Formatt -and !$AtEnd) {
+          [void]$Base32Output.Append($B32Chunk)
+          [void]$Base32Output.Append("`r`n")
+        } else {
+          [void]$Base32Output.Append($B32Chunk)
+        }
+      }
+      [string]$result = $Base32Output.ToString()
+    } catch {
+      Write-Error "Exception: $($_.Exception.Message)"
+      Break
+    } finally {
+      $BinaryReader.Close()
+      $BinaryReader.Dispose()
+      $Stream.Close()
+      $Stream.Dispose()
+    }
+    # Write-Verbose "[Base32] Encoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
+    return $result
+  }
+  static [byte[]] Decode([string]$string) {
+    [ValidateNotNullOrEmpty()][string]$string = $string;
+    $string = $string.ToLower(); $B32CHARSET = [Base32]::charset
+    $B32CHARSET_Pattern = "^[A-Z2-7 ]+_*$"; [byte[]]$result = $null
+    if (!($string -match $B32CHARSET_Pattern)) {
+      Throw "Invalid Base32 data encountered in input stream."
+    }
+    # Write-Verbose "[Base32] Decoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
+    $InputStream = [MemoryStream]::new([Encoding]::UTF8.GetBytes($string), 0, $string.Length)
+    $BinaryReader = [BinaryReader]::new($InputStream)
+    $OutputStream = [MemoryStream]::new()
+    $BinaryWriter = [BinaryWriter]::new($OutputStream)
+    Try {
+      While ([System.Char[]]$CharsRead = $BinaryReader.ReadChars(8)) {
+        [System.Byte[]]$B32Bytes = , 0x00 * 5
+        [System.UInt16]$CharLen = 8 - ($CharsRead -Match "_").Count
+        [System.UInt16]$ByteLen = [Math]::Floor(($CharLen * 5) / 8)
+        [System.Byte[]]$BinChunk = , 0x00 * $ByteLen
+        if ($CharLen -lt 8) {
+          [System.Char[]]$WorkingChars = , "a" * 8
+          [Array]::Copy($CharsRead, $WorkingChars, $CharLen)
+          [Array]::Resize([ref]$CharsRead, 8)
+          [Array]::Copy($WorkingChars, $CharsRead, 8)
+        }
+        $B32Bytes[0] = (($B32CHARSET.IndexOf($CharsRead[0]) -band 0x1F) -shl 3) -bor (($B32CHARSET.IndexOf($CharsRead[1]) -band 0x1C) -shr 2)
+        $B32Bytes[1] = (($B32CHARSET.IndexOf($CharsRead[1]) -band 0x03) -shl 6) -bor (($B32CHARSET.IndexOf($CharsRead[2]) -band 0x1F) -shl 1) -bor (($B32CHARSET.IndexOf($CharsRead[3]) -band 0x10) -shr 4)
+        $B32Bytes[2] = (($B32CHARSET.IndexOf($CharsRead[3]) -band 0x0F) -shl 4) -bor (($B32CHARSET.IndexOf($CharsRead[4]) -band 0x1E) -shr 1)
+        $B32Bytes[3] = (($B32CHARSET.IndexOf($CharsRead[4]) -band 0x01) -shl 7) -bor (($B32CHARSET.IndexOf($CharsRead[5]) -band 0x1F) -shl 2) -bor (($B32CHARSET.IndexOf($CharsRead[6]) -band 0x18) -shr 3)
+        $B32Bytes[4] = (($B32CHARSET.IndexOf($CharsRead[6]) -band 0x07) -shl 5) -bor ($B32CHARSET.IndexOf($CharsRead[7]) -band 0x1F)
+        [System.Buffer]::BlockCopy($B32Bytes, 0, $BinChunk, 0, $ByteLen)
+        $BinaryWriter.Write($BinChunk)
+      }
+      $result = $OutputStream.ToArray()
+    } catch {
+      Write-Error "Exception: $($_.Exception.Message)"
+      Break
+    } finally {
+      $BinaryReader.Close()
+      $BinaryReader.Dispose()
+      $BinaryWriter.Close()
+      $BinaryWriter.Dispose()
+      $InputStream.Close()
+      $InputStream.Dispose()
+      $OutputStream.Close()
+      $OutputStream.Dispose()
+    }
+    # Write-Verbose "[Base32] Decoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
+    return $result
   }
 }
 class Base36 : EncodingBase {
@@ -301,8 +389,8 @@ class Base58 : EncodingBase {
     $encoded = $null; $b58_size = 2 * ($ba.length)
     $encoded = [byte[]]::New($b58_size)
     $leading_zeroes = [regex]::New("^(0*)").Match([string]::Join([string]::Empty, $ba)).Groups[1].Length
-    $Timer = [System.Diagnostics.Stopwatch]::StartNew();
-    Write-Verbose "[Base58] Encoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
+    # $Timer = [System.Diagnostics.Stopwatch]::StartNew();
+    # Write-Verbose "[Base58] Encoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
     for ($i = 0; $i -lt $ba.length; $i++) {
       [System.Numerics.BigInteger]$dec_char = $ba[$i]
       for ($z = $b58_size; $z -gt 0; $z--) {
@@ -316,7 +404,7 @@ class Base58 : EncodingBase {
       $mapped[$i] = [Base58]::Bytes[$encoded[$i]]
     }
     $encoded = [Base58]::GetString($mapped)
-    Write-Verbose "[Base58] Encoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
+    # Write-Verbose "[Base58] Encoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
     if ([regex]::New("(1{$leading_zeroes}[^1].*)").Match($encoded).Success) {
       # $encoded equals [regex]::New("(1{$leading_zeroes}[^1].*)").Match($encoded).Groups[1].Value
       return $encoded
@@ -327,8 +415,9 @@ class Base58 : EncodingBase {
   static [byte[]] Decode([string]$text) {
     $leading_ones = [regex]::New("^(1*)").Match($text).Groups[1].Length
     $_bytes = [Base58]::GetBytes($text)
-    $mapped = [byte[]]::New($_bytes.length); $Timer = [System.Diagnostics.Stopwatch]::StartNew();
-    Write-Verbose "[Base58] Decoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
+    $mapped = [byte[]]::New($_bytes.length);
+    # $Timer = [System.Diagnostics.Stopwatch]::StartNew();
+    # Write-Verbose "[Base58] Decoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
     for ($i = 0; $i -lt $_bytes.length; $i++) {
       $char = $_bytes[$i]
       $mapped[$i] = [Base58]::Bytes.IndexOf($char)
@@ -347,7 +436,7 @@ class Base58 : EncodingBase {
         $decoded = $decoded[1..($decoded.Length - 1)]
       }
     )
-    Write-Verbose "[Base58] Decoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
+    # Write-Verbose "[Base58] Decoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
     return $decoded
   }
 }
