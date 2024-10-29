@@ -1,11 +1,12 @@
 ﻿@{
   ModuleName    = 'cliHelper.xconvert'
-  ModuleVersion = [System.Management.Automation.SemanticVersion]::new(0, 1, 2)
+  ModuleVersion = [System.Management.Automation.SemanticVersion]::new(0, 1, 3)
   ReleaseNotes  = @"
 # Changelog`n`n
 
-- Now [xconvert]::LocalizedData works anywhere.
-- Added encoder/decoder utility classes: Base85, Base58 and Base16
+- Invoke-Converter is the only cmdlet :D
+- Easy method chaining and Pipeline stuff
+- Added argument completion for method names
 
 `n`n***`n`n## Manual install guide`n`n
 1. [Click here](https://github.com/alainQtec/cliHelper.xconvert/releases/download/v<versionToDeploy>/cliHelper.xconvert.zip) to download the *PsImport.zip* file attached to the release.
