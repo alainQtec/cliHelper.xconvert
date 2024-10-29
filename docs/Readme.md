@@ -1,11 +1,6 @@
 ## docs
 
-goal->
-
-**To make
-[xconvert]::`the best module to convert files and objects in powershell`.**
-
-<!-- Usage docs go here -->
+Usage docs go here...
 
 ## WORK_IN_PROGRESS
 
