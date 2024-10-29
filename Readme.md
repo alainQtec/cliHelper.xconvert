@@ -25,20 +25,18 @@ you have to remember ×͜×
 
 </p>
 
-**[Level 1]() _ Simple**
+⤷ **1. (xconvert). Like directly using the class.**
 
-⤷ **directly using the [xconvert] class.**
-
-- To know what method to use, you just type `[xconvert]::From` and <details>
+- To know what method to use, you just type `xconvert From` and <details>
   <summary><b>Tab</b> to see all options.</summary>
 
-  [xconvert]::From `Tab`
+  xconvert From `Tab`
 
   gives this output
 
   [![from tab](/docs/img/from.png)](https://alainQtec.dev/clihelper-modules/xconvert)
 
-  `or` [xconvert]::To `Tab`
+  `or` xconvert To `Tab`
 
   [![to tab](/docs/img/to.png)](https://alainQtec.dev/clihelper-modules/xconvert)
 
@@ -47,23 +45,27 @@ you have to remember ×͜×
 Then you can do stuff like:
 
 ```PowerShell
-(Xconvert)::ToBase32String("HelloWorld")
+"HelloWorld" | xconvert ToBase32String
+# same as
+(xconvert)::ToBase32String("HelloWorld")
 ```
 
-ie: since `xconvert` is an alias for the public funtion `Invoke-Converter`.
-
+<p>
+ie: since xconvert is an alias for the public funtion <a href="./Public/Invoke-Converter.ps1">Invoke-Converter</a>.
+</br>
 Note: Tab argumant completion is still ᴡɪᴘ &will ship in v0.1.3
+</p>
 
-**[Level 2]() _ Metal 🔥 ⚡︎ 🤘**
-
-⤷ **Chain⫘⫘ing and piping public function(s)**
+⤷ **2. Chain⫘⫘ing and piping public function(s)**
 
 ex: do stuff like
 
 ```PowerShell
-$der_Pass = "HelloWorld" | Xconvert ToBase32String, ToObfuscated, ToSecurestring
+$enc_Pass = "HelloWorld" | Xconvert ToBase32String, ToObfuscated, ToSecurestring
+# then reverse:
 $txt_Pass = $enc_Pass | xconvert -m ToString, FromObfuscated, FromBase32String, ToInt32, Tostring
 $txt_Pass | Should -Be "HelloWorld"
+# Metal 🔥 ⚡︎ 🤘
 ```
 
 Advanced? yeah you can get nuts with this cmdlet 🤓
