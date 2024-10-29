@@ -1,6 +1,6 @@
 # [![✖convert](/docs/img/favicons/favicon-150x150.png)](https://alainQtec.dev/clihelper-modules/xconvert)
 
-<p><b><a href="https://powershellgallery.com/packages/cliHelper.xconvert">✖convert</a></b> - version <b>0.1.2</b></p>
+<p><b><a href="https://powershellgallery.com/packages/cliHelper.xconvert">✖convert</a></b> - version <b>0.1.3</b></p>
 
 An all-in-one module to convert files and object types.
 
@@ -9,7 +9,7 @@ Its like the builtin <a href="https://learn.microsoft.com/en-us/dotnet/fundament
 </br>
 </p>
 
-## ⬇️ Install
+## ↯ Install
 
 ```PowerShell
 Install-Module cliHelper.xconvert
@@ -17,7 +17,7 @@ Install-Module cliHelper.xconvert
 
 ⤷ Straight forward; gets the latest version.
 
-## 🧑🏻‍💻 Usage
+## 🧑🏻‍💻 ᴜsᴀɢᴇ
 
 <p>
 Hint: <a href="./Public/Invoke-Converter.ps1">xconvert</a> is pretty much the only cmdlet
@@ -25,25 +25,24 @@ you have to remember ×͜×
 
 </p>
 
-**1. The simplest way?**
+**[Level 1]() _ Simple**
 
-⤷ **Use Public function(s) or directly use the [xconvert] class.**
+⤷ **directly using the [xconvert] class.**
 
-- The functions give more options & output pipeline.
-- To know what method to use, you just `[xconvert]::From` and press `Tab` to see
-  all options.
+- To know what method to use, you just type `[xconvert]::From` and <details>
+  <summary><b>Tab</b> to see all options.</summary>
 
-  (Tab argumant completion is still wip &will ship in v0.1.3)
+  [xconvert]::From `Tab`
 
-[xconvert]::From + `Tab`
+  gives this output
 
-gives this output
+  [![from tab](/docs/img/from.png)](https://alainQtec.dev/clihelper-modules/xconvert)
 
-[![from tab](/docs/img/from.png)](https://alainQtec.dev/clihelper-modules/xconvert)
+  `or` [xconvert]::To `Tab`
 
-`or` [xconvert]::To + `Tab`
+  [![to tab](/docs/img/to.png)](https://alainQtec.dev/clihelper-modules/xconvert)
 
-[![to tab](/docs/img/to.png)](https://alainQtec.dev/clihelper-modules/xconvert)
+</details>
 
 Then you can do stuff like:
 
@@ -52,13 +51,14 @@ Then you can do stuff like:
 ```
 
 ie: since `xconvert` is an alias for the public funtion `Invoke-Converter`.
-</br>
 
-**2. Metal ⚡︎ 🤘**
+Note: Tab argumant completion is still ᴡɪᴘ &will ship in v0.1.3
 
-⤷ **Chaining and Pipeline**
+**[Level 2]() _ Metal 🔥 ⚡︎ 🤘**
 
-You can do stuff like:
+⤷ **Chain⫘⫘ing and piping public function(s)**
+
+ex: do stuff like
 
 ```PowerShell
 $der_Pass = "HelloWorld" | Xconvert ToBase32String, ToObfuscated, ToSecurestring
@@ -67,7 +67,7 @@ $der_Pass = "HelloWorld" | Xconvert ToBase32String, ToObfuscated, ToSecurestring
 Advanced? yeah you can get nuts with this cmdlet 🤓
 
 <details>
-  <summary><b>FAQ (‘•.•’)</b>: Why?!</summary>
+  <summary><b>ғᴀᴏ̨ (‘•.•’)</b>: Why?!</summary>
 
 ⤷ **PowerShell has limited built-in Support for Some Formats**.
 
@@ -89,12 +89,12 @@ in powershell.
 
 </details>
 
-## License
+## ʟɪᴄᴇɴsᴇ
 
 This project is licensed under the MIT License. See the
-[License](https://alain.MIT-license.org) file for details.
+[ʟɪᴄᴇɴsᴇ](https://alain.MIT-license.org) file for details.
 
-## Sponsor?
+## sᴘᴏɴsᴏʀ?
 
 If this tool saves your time and you want to support me;
 <a href="https://www.paypal.com/donate/?hosted_button_id=3LA3EUKRU6722">
@@ -105,7 +105,7 @@ If this tool saves your time and you want to support me;
 
 Contributions are really welcome.
 
-⤷ This is still a **WIP 🚧**. Yes its usable, but alot of cool stuff are not
+⤷ This is still a **ᴡɪᴘ 🚧**. Yes its usable, but alot of cool stuff are not
 fully done.
 
 For more, checkout the [progress](./docs/Readme.md)
