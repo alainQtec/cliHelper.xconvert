@@ -30,7 +30,8 @@ enum dateFormat {
 # .DESCRIPTION
 #   Extended version of built in [convert] class
 class xconvert : System.ComponentModel.TypeConverter {
-  static [PsObject] $LocalizedData = (Get-xconvertdata)
+  static hidden [PsObject] $LocalizedData = (Get-xconvertdata)
+  static hidden [Type[]] $ReturnTypes = ([xconvert].GetMethods().Where({ $_.IsStatic -and !$_.IsHideBySig }).ReturnType | Sort-Object -Unique Name)
   xconvert() {}
   static [string] Base32ToHex([string]$base32String) {
     return [System.BitConverter]::ToString([Encoding]::UTF8.GetBytes($base32String)).Replace("-", "").ToLower()
@@ -48,7 +49,6 @@ class xconvert : System.ComponentModel.TypeConverter {
   static [string] Tostring($Object) {
     if ($null -eq $Object) { return [string]::Empty };
     [string]$ObjtN = $Object.GetType().Name
-    Write-Verbose "ObjtN = $($ObjtN.PsObject.Typenames -join ",")" -Verbose
     if ($ObjtN -notin ('byte[]', 'int[]', 'SecureString', 'Hashtable', 'OrderedDictionary', 'AXNodeConfiguration', 'PSBoundParametersDictionary')) {
       throw [System.InvalidOperationException]::new("Object type not upported")
     }
@@ -510,110 +510,34 @@ class xconvert : System.ComponentModel.TypeConverter {
     return $OutputObject
   }
   static [byte[]] FromBase32String([string]$string) {
-    [ValidateNotNullOrEmpty()][string]$string = $string;
-    $string = $string.ToLower(); $B32CHARSET = "abcdefghijklmnopqrstuvwxyz234567"
-    $B32CHARSET_Pattern = "^[A-Z2-7 ]+_*$"; [byte[]]$result = $null
-    if (!($string -match $B32CHARSET_Pattern)) {
-      Throw "Invalid Base32 data encountered in input stream."
-    }
-    $InputStream = [MemoryStream]::new([Encoding]::UTF8.GetBytes($string), 0, $string.Length)
-    $BinaryReader = [BinaryReader]::new($InputStream)
-    $OutputStream = [MemoryStream]::new()
-    $BinaryWriter = [BinaryWriter]::new($OutputStream)
-    Try {
-      While ([System.Char[]]$CharsRead = $BinaryReader.ReadChars(8)) {
-        [System.Byte[]]$B32Bytes = , 0x00 * 5
-        [System.UInt16]$CharLen = 8 - ($CharsRead -Match "_").Count
-        [System.UInt16]$ByteLen = [Math]::Floor(($CharLen * 5) / 8)
-        [System.Byte[]]$BinChunk = , 0x00 * $ByteLen
-        if ($CharLen -lt 8) {
-          [System.Char[]]$WorkingChars = , "a" * 8
-          [Array]::Copy($CharsRead, $WorkingChars, $CharLen)
-          [Array]::Resize([ref]$CharsRead, 8)
-          [Array]::Copy($WorkingChars, $CharsRead, 8)
-        }
-        $B32Bytes[0] = (($B32CHARSET.IndexOf($CharsRead[0]) -band 0x1F) -shl 3) -bor (($B32CHARSET.IndexOf($CharsRead[1]) -band 0x1C) -shr 2)
-        $B32Bytes[1] = (($B32CHARSET.IndexOf($CharsRead[1]) -band 0x03) -shl 6) -bor (($B32CHARSET.IndexOf($CharsRead[2]) -band 0x1F) -shl 1) -bor (($B32CHARSET.IndexOf($CharsRead[3]) -band 0x10) -shr 4)
-        $B32Bytes[2] = (($B32CHARSET.IndexOf($CharsRead[3]) -band 0x0F) -shl 4) -bor (($B32CHARSET.IndexOf($CharsRead[4]) -band 0x1E) -shr 1)
-        $B32Bytes[3] = (($B32CHARSET.IndexOf($CharsRead[4]) -band 0x01) -shl 7) -bor (($B32CHARSET.IndexOf($CharsRead[5]) -band 0x1F) -shl 2) -bor (($B32CHARSET.IndexOf($CharsRead[6]) -band 0x18) -shr 3)
-        $B32Bytes[4] = (($B32CHARSET.IndexOf($CharsRead[6]) -band 0x07) -shl 5) -bor ($B32CHARSET.IndexOf($CharsRead[7]) -band 0x1F)
-        [System.Buffer]::BlockCopy($B32Bytes, 0, $BinChunk, 0, $ByteLen)
-        $BinaryWriter.Write($BinChunk)
-      }
-      $result = $OutputStream.ToArray()
-    } catch {
-      Write-Error "Exception: $($_.Exception.Message)"
-      Break
-    } finally {
-      $BinaryReader.Close()
-      $BinaryReader.Dispose()
-      $BinaryWriter.Close()
-      $BinaryWriter.Dispose()
-      $InputStream.Close()
-      $InputStream.Dispose()
-      $OutputStream.Close()
-      $OutputStream.Dispose()
-    }
-    return $result
+    return [Base32]::Decode($string)
+  }
+  static [byte[]] FromBase58String([string]$text) {
+    return [Base58]::Decode($text)
+  }
+  static [byte[]] FromBase85String([string]$text) {
+    return [Base85]::Decode($text)
   }
   static [string] ToBase32String([byte[]]$bytes) {
-    return [xconvert]::ToBase32String($bytes, $false)
+    return [Base32]::Encode($bytes)
   }
   static [string] ToBase32String([string]$String) {
-    return [xconvert]::ToBase32String($String, $false)
+    return [Base32]::Encode($String)
   }
   static [string] ToBase32String([byte[]]$bytes, [bool]$Formatt) {
-    return [xconvert]::ToBase32String([MemoryStream]::New($bytes), $Formatt)
+    return [Base32]::Encode($bytes, $Formatt)
   }
   static [string] ToBase32String([string]$String, [bool]$Formatt) {
-    return [xconvert]::ToBase32String([Encoding]::ASCII.GetBytes($String), $Formatt)
+    return [Base32]::Encode($String, $Formatt)
   }
   static [string] ToBase32String([Stream]$Stream, [bool]$Formatt) {
-    # .EXAMPLE
-    # $b32 = [xconvert]::ToBase32String("hello world!")
-    # $text = [String]::Join([string]::Empty, [xconvert]::ToString([int[]][xconvert]::FromBase32String($b32)))
-    $BinaryReader = [BinaryReader]::new($Stream);
-    $Base32Output = [StringBuilder]::new(); $result = [string]::Empty
-    $B32CHARSET = "abcdefghijklmnopqrstuvwxyz234567"
-    Try {
-      While ([byte[]]$BytesRead = $BinaryReader.ReadBytes(5)) {
-        [System.Boolean]$AtEnd = ($BinaryReader.BaseStream.Length -eq $BinaryReader.BaseStream.Position)
-        [System.UInt16]$ByteLength = $BytesRead.Length
-        if ($ByteLength -lt 5) {
-          [byte[]]$WorkingBytes = , 0x00 * 5
-          [System.Buffer]::BlockCopy($BytesRead, 0, $WorkingBytes, 0, $ByteLength)
-          [Array]::Resize([ref]$BytesRead, 5)
-          [System.Buffer]::BlockCopy($WorkingBytes, 0, $BytesRead, 0, 5)
-        }
-        [System.Char[]]$B32Chars = , 0x00 * 8
-        [System.Char[]]$B32Chunk = , "_" * 8
-        $B32Chars[0] = ($B32CHARSET[($BytesRead[0] -band 0xF8) -shr 3])
-        $B32Chars[1] = ($B32CHARSET[(($BytesRead[0] -band 0x07) -shl 2) -bor (($BytesRead[1] -band 0xC0) -shr 6)])
-        $B32Chars[2] = ($B32CHARSET[($BytesRead[1] -band 0x3E) -shr 1])
-        $B32Chars[3] = ($B32CHARSET[(($BytesRead[1] -band 0x01) -shl 4) -bor (($BytesRead[2] -band 0xF0) -shr 4)])
-        $B32Chars[4] = ($B32CHARSET[(($BytesRead[2] -band 0x0F) -shl 1) -bor (($BytesRead[3] -band 0x80) -shr 7)])
-        $B32Chars[5] = ($B32CHARSET[($BytesRead[3] -band 0x7C) -shr 2])
-        $B32Chars[6] = ($B32CHARSET[(($BytesRead[3] -band 0x03) -shl 3) -bor (($BytesRead[4] -band 0xE0) -shr 5)])
-        $B32Chars[7] = ($B32CHARSET[$BytesRead[4] -band 0x1F])
-        [Array]::Copy($B32Chars, $B32Chunk, ([Math]::Ceiling(($ByteLength / 5) * 8)))
-        if ($BinaryReader.BaseStream.Position % 8 -eq 0 -and $Formatt -and !$AtEnd) {
-          [void]$Base32Output.Append($B32Chunk)
-          [void]$Base32Output.Append("`r`n")
-        } else {
-          [void]$Base32Output.Append($B32Chunk)
-        }
-      }
-      [string]$result = $Base32Output.ToString()
-    } catch {
-      Write-Error "Exception: $($_.Exception.Message)"
-      Break
-    } finally {
-      $BinaryReader.Close()
-      $BinaryReader.Dispose()
-      $Stream.Close()
-      $Stream.Dispose()
-    }
-    return $result
+    return [Base32]::Encode($Stream, $Formatt)
+  }
+  static [string] ToBase58String([byte[]]$bytes) {
+    return [Base58]::Encode($bytes)
+  }
+  static [string] ToBase85String([byte[]]$bytes) {
+    return [Base85]::GetString($bytes)
   }
   static [string] ToProtected([string]$string) {
     $Scope = [ProtectionScope]::CurrentUser
@@ -1039,7 +963,7 @@ class xconvert : System.ComponentModel.TypeConverter {
       Write-Error $_
     }
   }
-  [Object[]]static ToOrdered($InputObject) {
+  static [Object[]] ToOrdered($InputObject) {
     $obj = $InputObject
     $convert = [scriptBlock]::Create({
         Param($obj)
@@ -1061,13 +985,13 @@ class xconvert : System.ComponentModel.TypeConverter {
     )
     return $(Invoke-Command -ScriptBlock $convert -ArgumentList $obj)
   }
-  [object]static ObjectFromFile([string]$FilePath) {
+  static [object] ObjectFromFile([string]$FilePath) {
     return [xconvert]::ObjectFromFile($FilePath, $false)
   }
-  [object]static ObjectFromFile([string]$FilePath, [string]$Type) {
+  static [object] ObjectFromFile([string]$FilePath, [string]$Type) {
     return [xconvert]::ObjectFromFile($FilePath, $Type, $false);
   }
-  [object]static ObjectFromFile([string]$FilePath, [bool]$Decrypt) {
+  static [object] ObjectFromFile([string]$FilePath, [bool]$Decrypt) {
     $FilePath = [xgen]::ResolvedPath($FilePath); $Object = $null
     try {
       if ($Decrypt) { $(Get-Item $FilePath).Decrypt() }
