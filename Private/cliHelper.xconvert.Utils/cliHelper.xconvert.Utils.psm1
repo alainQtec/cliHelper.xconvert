@@ -623,7 +623,7 @@ class xObOptions {
   [int]$MaxDepth = 10
 }
 
-class xgen {
+class xget {
   static [xObOptions] $Options = [xObOptions]::new()
   # Use a cryptographic hash function (SHA-256) to generate a unique machine ID
   static [string] UniqueMachineId() {
@@ -659,7 +659,7 @@ class xgen {
     return $Id
   }
   static [string[]] ListProperties([System.Object]$Obj) {
-    return [xgen]::ListProperties($Obj, '')
+    return [xget]::ListProperties($Obj, '')
   }
   static [string[]] ListProperties([System.Object]$Obj, [string]$Prefix = '') {
     $Properties = @()
@@ -678,17 +678,17 @@ class xgen {
         $Properties += $FullPropertyName
       } elseif ($propertyType -is [System.Object]) {
         Write-Verbose "ob <= $propertyType"
-        $Properties += [xgen]::ListProperties($PropertyValue, $FullPropertyName)
+        $Properties += [xget]::ListProperties($PropertyValue, $FullPropertyName)
       }
     }
     return $Properties
   }
   static [Object[]] ExcludeProperties($Object) {
-    return [xgen]::ExcludeProperties($Object, [xgen]::Options.PropstoExclude)
+    return [xget]::ExcludeProperties($Object, [xget]::Options.PropstoExclude)
   }
   static [Object[]] ExcludeProperties($Object, [string[]]$PropstoExclude) {
     $DefaultTypeProps = @()
-    if ([xgen]::Options.SkipDefaults) {
+    if ([xget]::Options.SkipDefaults) {
       try {
         $DefaultTypeProps = @( $Object.GetType().GetProperties() | Select-Object -ExpandProperty Name -ErrorAction Stop )
       } Catch {
@@ -699,12 +699,12 @@ class xgen {
     return $Object.psobject.properties | Where-Object { $allPropstoExclude -notcontains $_.Name }
   }
   static [PSObject] RecurseObject($Object, [PSObject]$Output) {
-    return [xgen]::RecurseObject($Object, '$Object', $Output, 0)
+    return [xget]::RecurseObject($Object, '$Object', $Output, 0)
   }
   static [PSObject] RecurseObject($Object, [string[]]$Path, [PSObject]$Output, [int]$Depth) {
     $Depth++
     #Get the children we care about, and their names
-    $Children = [xgen]::ExcludeProperties($Object);
+    $Children = [xget]::ExcludeProperties($Object);
     #Loop through the children properties.
     foreach ($Child in $Children) {
       $ChildName = $Child.Name
@@ -716,9 +716,9 @@ class xgen {
           $ChildName
         }
       )
-      $IsInInclude = ![xgen]::Options.PropstoInclude -or @([xgen]::Options.PropstoInclude).Where({ $ChildName -like $_ })
-      $IsInValue = ![xgen]::Options.Value -or (@([xgen]::Options.Value).Where({ $ChildValue -like $_ }).Count -gt 0)
-      if ($IsInInclude -and $IsInValue -and $Depth -le [xgen]::Options.MaxDepth) {
+      $IsInInclude = ![xget]::Options.PropstoInclude -or @([xget]::Options.PropstoInclude).Where({ $ChildName -like $_ })
+      $IsInValue = ![xget]::Options.Value -or (@([xget]::Options.Value).Where({ $ChildValue -like $_ }).Count -gt 0)
+      if ($IsInInclude -and $IsInValue -and $Depth -le [xget]::Options.MaxDepth) {
         $ThisPath = @( $Path + $FriendlyChildName ) -join "."
         $Output | Add-Member -MemberType NoteProperty -Name $ThisPath -Value $ChildValue
       }
@@ -741,27 +741,27 @@ class xgen {
       $CurrentPath = @( $Path + $FriendlyChildName ) -join "."
 
       #Get the children's children we care about, and their names.  Also look for signs of a hashtable like type
-      $ChildrensChildren = [xgen]::ExcludeProperties($ChildValue)
+      $ChildrensChildren = [xget]::ExcludeProperties($ChildValue)
       $HashKeys = if ($ChildValue.Keys -and $ChildValue.Values) {
         $ChildValue.Keys
       } else {
         $null
       }
-      if ($(@($ChildrensChildren).count -ne 0 -or $HashKeys) -and $Depth -lt [xgen]::Options.MaxDepth) {
+      if ($(@($ChildrensChildren).count -ne 0 -or $HashKeys) -and $Depth -lt [xget]::Options.MaxDepth) {
         #This handles hashtables.  But it won't recurse...
         if ($HashKeys) {
           foreach ($key in $HashKeys) {
             $Output | Add-Member -MemberType NoteProperty -Name "$CurrentPath['$key']" -Value $ChildValue["$key"]
-            $Output = [xgen]::RecurseObject($ChildValue["$key"], "$CurrentPath['$key']", $Output, $depth)
+            $Output = [xget]::RecurseObject($ChildValue["$key"], "$CurrentPath['$key']", $Output, $depth)
           }
         } else {
           if ($IsArray) {
             foreach ($item in @($ChildValue)) {
-              $Output = [xgen]::RecurseObject($item, "$CurrentPath[$count]", $Output, $depth)
+              $Output = [xget]::RecurseObject($item, "$CurrentPath[$count]", $Output, $depth)
               $Count++
             }
           } else {
-            $Output = [xgen]::RecurseObject($ChildValue, $CurrentPath, $Output, $depth)
+            $Output = [xget]::RecurseObject($ChildValue, $CurrentPath, $Output, $depth)
           }
         }
       }
@@ -769,7 +769,7 @@ class xgen {
     return $Output
   }
   static [hashtable[]] FindHashKeyValue($PropertyName, $Ast) {
-    return [xgen]::FindHashKeyValue($PropertyName, $Ast, @())
+    return [xget]::FindHashKeyValue($PropertyName, $Ast, @())
   }
   static [hashtable[]] FindHashKeyValue($PropertyName, $Ast, [string[]]$CurrentPath) {
     if ($PropertyName -eq ($CurrentPath -Join '.') -or $PropertyName -eq $CurrentPath[-1]) {
@@ -778,7 +778,7 @@ class xgen {
     if ($Ast.PipelineElements.Expression -is [System.Management.Automation.Language.HashtableAst]) {
       $KeyValue = $Ast.PipelineElements.Expression
       ForEach ($KV in $KeyValue.KeyValuePairs) {
-        $result = [xgen]::FindHashKeyValue($PropertyName, $KV.Item2, @($CurrentPath + $KV.Item1.Value))
+        $result = [xget]::FindHashKeyValue($PropertyName, $KV.Item2, @($CurrentPath + $KV.Item1.Value))
         if ($null -ne $result) {
           $r += $result
         }
@@ -795,6 +795,38 @@ class xgen {
         $ParsedText = $ParsedText -replace "'", "''"
       }
       return $ParsedText
+    }
+  }
+  static [bool] IsValidHex([string]$Text) {
+    return [regex]::IsMatch($Text, '^#?([a-f0-9]{6}|[a-f0-9]{3})$')
+  }
+  static [bool] IsValidHex([byte[]]$bytes) {
+    # .Example
+    # $bytes = [byte[]](0x00, 0x1F, 0x2A, 0xFF)
+    # $isValid = [MyConverter]::IsValidHex($bytes)
+    # Write-Host "Is valid hex: $isValid"
+    foreach ($byte in $bytes) {
+      if ($byte -lt 0x00 -or $byte -gt 0xFF) {
+        return $false
+      }
+    } return $true
+  }
+  static [void] ValidatePolybius([string]$Text, [string]$Key, [string]$Action) {
+    if ($Text -notmatch "^[a-z ]*$" -and ($Action -ne 'Decrypt')) {
+      throw('Text must only have alphabetical characters');
+    }
+    if ($Key.Length -ne 25) {
+      throw('Key must be 25 characters in length');
+    }
+    if ($Key -notmatch "^[a-z]*$") {
+      throw('Key must only have alphabetical characters');
+    }
+    for ($i = 0; $i -lt 25; $i++) {
+      for ($j = 0; $j -lt 25; $j++) {
+        if (($Key[$i] -eq $Key[$j]) -and ($i -ne $j)) {
+          throw('Key must have no repeating letters');
+        }
+      }
     }
   }
 }
