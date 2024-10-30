@@ -2,6 +2,8 @@ using namespace System.IO
 using namespace System.Text
 using namespace System.Reflection
 using namespace System.Collections
+using namespace System.Management.Automation
+using namespace System.Runtime.Serialization
 using namespace System.Runtime.InteropServices
 using module Private/cliHelper.xconvert.Utils
 #region    Classes
@@ -35,12 +37,6 @@ class xconvert : System.ComponentModel.TypeConverter {
   static hidden [MethodInfo[]] $Methods = [xconvert].GetMethods().Where({ $_.IsStatic -and !$_.IsHideBySig })
   static hidden [Type[]] $ReturnTypes = ([xconvert]::Methods.ReturnType | Sort-Object -Unique Name)
   xconvert() {}
-  static [string] Base32ToHex([string]$base32String) {
-    return [System.BitConverter]::ToString([Encoding]::UTF8.GetBytes($base32String)).Replace("-", "").ToLower()
-  }
-  static [string] Base32FromHex([string]$hexString) {
-    return [Encoding]::UTF8.GetString(([byte[]] -split ($hexString -replace '..', '0x$& ')))
-  }
   static [int[]] ToInt32([byte[]]$Bytes) {
     return [int[]]$Bytes
   }
@@ -51,7 +47,7 @@ class xconvert : System.ComponentModel.TypeConverter {
   static [string] Tostring($Object) {
     if ($null -eq $Object) { return [string]::Empty };
     [string]$ObjtN = $Object.GetType().Name
-    if ($ObjtN -notin ('byte[]', 'int[]', 'SecureString', 'Hashtable', 'OrderedDictionary', 'AXNodeConfiguration', 'PSBoundParametersDictionary')) {
+    if ($ObjtN -notin ('BitArray', 'byte[]', 'int[]', 'SecureString', 'Hashtable', 'OrderedDictionary', 'AXNodeConfiguration', 'PSBoundParametersDictionary')) {
       throw [System.InvalidOperationException]::new("Object type not upported")
     }
     $r = switch ($ObjtN) {
@@ -70,6 +66,31 @@ class xconvert : System.ComponentModel.TypeConverter {
           }
         }
         $Pstr; break
+      }
+      'BitArray' {
+        $b = [BitArray]$Object
+        [string]$finalString = [string]::Empty;
+        # Manually read the first 8 bits and
+        while ($b.Length -gt 0) {
+          $ba_tempBitArray = [BitArray]::new($b.Length - 8);
+          $int_binaryValue = 0;
+          if ($b[0]) { $int_binaryValue += 1 };
+          if ($b[1]) { $int_binaryValue += 2 };
+          if ($b[2]) { $int_binaryValue += 4 };
+          if ($b[3]) { $int_binaryValue += 8 };
+          if ($b[4]) { $int_binaryValue += 16 };
+          if ($b[5]) { $int_binaryValue += 32 };
+          if ($b[6]) { $int_binaryValue += 64 };
+          if ($b[7]) { $int_binaryValue += 128 };
+          $finalString += [Char]::ConvertFromUtf32($int_binaryValue);
+          $int_counter = 0;
+          for ($i = 8; $i -lt $b.Length; $i++) {
+            $ba_tempBitArray[$int_counter++] = $b[$i];
+          }
+          $b = $ba_tempBitArray;
+        }
+        $finalString;
+        break
       }
       'byte[]' {
         [System.Convert]::ToBase64String([xconvert]::BytesFromObject($Object));
@@ -99,12 +120,12 @@ class xconvert : System.ComponentModel.TypeConverter {
               }
               ### Strings and Enums
               $($keytN -in @('String', 'ActionPreference')) {
-                [string]$itemText = "{0} = '{1}'" -f "$key", [xgen]::EscapeSpecialCharacters($Object[$key])
+                [string]$itemText = "{0} = '{1}'" -f "$key", [xget]::EscapeSpecialCharacters($Object[$key])
                 [void]$sb.AppendLine($itemText)
                 break
               }
               $($keytN -eq 'String[]') {
-                [string]$itemText = "{0} = @({1})" -f "$key", "$($($Object[$key] | ForEach-Object { "'$([xgen]::EscapeSpecialCharacters($_))'" }) -join ", ")"
+                [string]$itemText = "{0} = @({1})" -f "$key", "$($($Object[$key] | ForEach-Object { "'$([xget]::EscapeSpecialCharacters($_))'" }) -join ", ")"
                 [void]$sb.AppendLine($itemText)
                 break
               }
@@ -184,10 +205,9 @@ class xconvert : System.ComponentModel.TypeConverter {
   static [guid] ToGuid([string]$text) {
     # Creates a string that passes guid regex checks (ie: not a real guid)
     if ($text.Trim().Length -ne 16) {
-      throw [System.InvalidOperationException]::new('$InputText.Trim().Length Should Be exactly 16. Ex: [xconvert]::ToGuid([xgen]::RandomName(16))')
+      throw [System.InvalidOperationException]::new('$InputText.Trim().Length Should Be exactly 16. Ex: [xconvert]::ToGuid([xget]::RandomName(16))')
     }
-    $IsHexString = [regex]::IsMatch($text, '^#?([a-f0-9]{6}|[a-f0-9]{3})$')
-    if ($IsHexString) {
+    if ([xget]::IsValidHex($text)) {
       return [System.Guid]::new(([byte[]] -split ($text -replace '..', '0x$& ')))
     }
     return [guid]::new([System.BitConverter]::ToString([Encoding]::UTF8.GetBytes($text)).Replace("-", "").ToLower().Insert(8, "-").Insert(13, "-").Insert(18, "-").Insert(23, "-"))
@@ -207,8 +227,8 @@ class xconvert : System.ComponentModel.TypeConverter {
       Tens      = 2
       Ones      = 3
     }
-    foreach ($curNumber in $Numbers) {
-      [int[]]$digits = ($curNumber.ToString().PadLeft(4, "0").ToCharArray()).ForEach({ [Char]::GetNumericValue($_) })
+    foreach ($n in $Numbers) {
+      [int[]]$digits = ($n.ToString().PadLeft(4, "0").ToCharArray()).ForEach({ [Char]::GetNumericValue($_) })
       $RomanNumeral = [string]::Empty
       $RomanNumeral += $DecimalToRoman.Thousands[$digits[$column.Thousands]]
       $RomanNumeral += $DecimalToRoman.Hundreds[$digits[$column.Hundreds]]
@@ -270,10 +290,10 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return [convert]::ToBoolean($Text)
   }
-  static [psobject] ToCaesarCipher([string]$Text) {
-    return [PsObject][xconvert]::ToCaesarCipher($Text, $(Get-Random (1..25)))
+  static [psobject] ToCaesar([string]$Text) {
+    return [PsObject][xconvert]::ToCaesar($Text, $(Get-Random (1..25)))
   }
-  static [psobject] ToCaesarCipher([string]$Text, [int]$Key) {
+  static [psobject] ToCaesar([string]$Text, [int]$Key) {
     $Text = $Text.ToLower();
     $Cipher = [string]::Empty;
     $alphabet = [string]"abcdefghijklmnopqrstuvwxyz";
@@ -294,7 +314,7 @@ class xconvert : System.ComponentModel.TypeConverter {
     $Output | Add-Member -Name 'key' -Value $Key -Type NoteProperty
     return $Output
   }
-  static [string] FromCaesarCipher([string]$Cipher, [int]$Key) {
+  static [string] FromCaesar([string]$Cipher, [int]$Key) {
     $Cipher = $Cipher.ToLower();
     $Output = [string]::Empty;
     $alphabet = [string]"abcdefghijklmnopqrstuvwxyz";
@@ -308,15 +328,15 @@ class xconvert : System.ComponentModel.TypeConverter {
     };
     return $Output;
   }
-  static [psobject] ToPolybiusCipher([String]$Text) {
+  static [psobject] ToPolybius([String]$Text) {
     $Ciphrkey = Get-Random "abcdefghijklmnopqrstuvwxyz" -Count 25
-    return [PsObject][xconvert]::ToPolybiusCipher($Text, $Ciphrkey)
+    return [PsObject][xconvert]::ToPolybius($Text, $Ciphrkey)
   }
-  static [psobject] ToPolybiusCipher([string]$Text, [string]$Key) {
+  static [psobject] ToPolybius([string]$Text, [string]$Key) {
     $Text = $Text.ToLower();
     $Key = $Key.ToLower();
     [String]$Cipher = [string]::Empty
-    [xconvert]::ValidatePolybiusCipher($Text, $Key, "Encrypt")
+    [xget]::ValidatePolybius($Text, $Key, "Encrypt")
     [Array]$polybiusTable = New-Object 'string[,]' 5, 5;
     $letter = 0;
     for ($i = 0; $i -lt 5; $i++) {
@@ -340,11 +360,11 @@ class xconvert : System.ComponentModel.TypeConverter {
     $Output | Add-Member -Name 'key' -Value $Key -Type NoteProperty
     return $Output
   }
-  static [string] FromPolybiusCipher([string]$Cipher, [string]$Key) {
+  static [string] FromPolybius([string]$Cipher, [string]$Key) {
     $Cipher = $Cipher.ToLower();
     $Key = $Key.ToLower();
     [String]$Output = [string]::Empty
-    [xconvert]::ValidatePolybiusCipher($Cipher, $Key, "Decrypt")
+    [xget]::ValidatePolybius($Cipher, $Key, "Decrypt")
     [Array]$polybiusTable = New-Object 'string[,]' 5, 5;
     $letter = 0;
     for ($i = 0; $i -lt 5; $i++) {
@@ -359,50 +379,21 @@ class xconvert : System.ComponentModel.TypeConverter {
     };
     return $Output;
   }
-  static [void] hidden ValidatePolybiusCipher([string]$Text, [string]$Key, [string]$Action) {
-    if ($Text -notmatch "^[a-z ]*$" -and ($Action -ne 'Decrypt')) {
-      throw('Text must only have alphabetical characters');
-    }
-    if ($Key.Length -ne 25) {
-      throw('Key must be 25 characters in length');
-    }
-    if ($Key -notmatch "^[a-z]*$") {
-      throw('Key must only have alphabetical characters');
-    }
-    for ($i = 0; $i -lt 25; $i++) {
-      for ($j = 0; $j -lt 25; $j++) {
-        if (($Key[$i] -eq $Key[$j]) -and ($i -ne $j)) {
-          throw('Key must have no repeating letters');
-        }
-      }
-    }
-  }
-  static [string] ToBinStR ([string]$string) {
-    return [xconvert]::ToBinStR([xconvert]::FromString("$string"), $false)
-  }
-  static [string] ToBinStR ([string]$string, [bool]$Tidy) {
-    return [xconvert]::ToBinStR([xconvert]::FromString("$string"), $Tidy)
-  }
-  static [string] BytesToRnStr([byte[]]$Inpbytes) {
-    $rn = [System.Random]::new(); # Hides Byte Array in a random String
-    $St = [System.string]::Join('', $($Inpbytes | ForEach-Object { [string][char]$rn.Next(97, 122) + $_ }));
-    return $St
-  }
-  static [byte[]] BytesFromRnStr ([string]$rnString) {
-    $az = [int[]](97..122) | ForEach-Object { [string][char]$_ };
-    $by = [byte[]][string]::Concat($(($rnString.ToCharArray() | ForEach-Object { if ($_ -in $az) { [string][char]32 } else { [string]$_ } }) | ForEach-Object { $_ })).Trim().split([string][char]32);
-    return $by
-  }
-  static [string] ToObfuscated([string]$inputString) {
-    $Inpbytes = [Encoding]::UTF8.GetBytes($inputString); $rn = [System.Random]::new(); # Hides Byte Array in a random String
+  static [string] ToObfuscated([string]$string) {
+    $Inpbytes = [Encoding]::UTF8.GetBytes($string); $rn = [System.Random]::new(); # Hides Byte Array in a random String
     return [string]::Join('', $($Inpbytes | ForEach-Object { [string][char]$rn.Next(97, 122) + $_ }));
   }
-  static [string] FromObfuscated([string]$obfuscatedString) {
-    $az = [int[]](97..122) | ForEach-Object { [string][char]$_ };
-    $outbytes = [byte[]][string]::Concat($(($obfuscatedString.ToCharArray() | ForEach-Object { if ($_ -in $az) { [string][char]32 } else { [string]$_ } }) | ForEach-Object { $_ })).Trim().split([string][char]32);
-    return [Encoding]::UTF8.GetString($outbytes)
+  static [string] ToObfuscated([byte[]]$bytes) {
+    $rn = [System.Random]::new(); # Hides Byte Array in a random String
+    $St = [System.string]::Join('', $($bytes | ForEach-Object { [string][char]$rn.Next(97, 122) + $_ }));
+    return $St
   }
-  [PSCustomObject[]]Static ToPSObject([xml]$XML) {
+  static [byte[]] FromObfuscated ([string]$string) {
+    $az = [int[]](97..122) | ForEach-Object { [string][char]$_ };
+    $by = [byte[]][string]::Concat($(($string.ToCharArray() | ForEach-Object { if ($_ -in $az) { [string][char]32 } else { [string]$_ } }) | ForEach-Object { $_ })).Trim().split([string][char]32);
+    return $by
+  }
+  static [PSCustomObject[]] ToPSObject([xml]$XML) {
     $Out = @(); foreach ($Object in @($XML.Objects.Object)) {
       $PSObject = [PSCustomObject]::new()
       foreach ($Property in @($Object.Property)) {
@@ -470,7 +461,7 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $objs
   }
-  [PSCustomObject]Static ToPSObject([System.Object]$Obj) {
+  Static [PSCustomObject] ToPSObject([System.Object]$Obj) {
     $PSObj = [PSCustomObject]::new();
     $Obj | Get-Member -MemberType Properties | ForEach-Object {
       $Name = $_.Name; $PSObj | Add-Member -Name $Name -MemberType NoteProperty -Value $(if ($null -ne $Obj.$Name) { if ("Deserialized" -in (($Obj.$Name | Get-Member).TypeName.Split('.') | Sort-Object -Unique)) { $([xconvert]::ToPSObject($Obj.$Name)) } else { $Obj.$Name } } else { $null })
@@ -504,7 +495,7 @@ class xconvert : System.ComponentModel.TypeConverter {
       $PropertyName = $_.Name
       $PropertyValue = $_.Value
       if ($_.TypeNameOfValue -is 'Deserialized.System.Management.Automation.PSCustomObject') {
-        $OutputObject | Add-Member -Name $PropertyName -MemberType NoteProperty -Value ([xgen]::ConvertToPSCustomObject($PropertyValue))
+        $OutputObject | Add-Member -Name $PropertyName -MemberType NoteProperty -Value ([xget]::ConvertToPSCustomObject($PropertyValue))
       } else {
         $OutputObject | Add-Member -Name $PropertyName -MemberType NoteProperty -Value $PropertyValue
       }
@@ -521,9 +512,15 @@ class xconvert : System.ComponentModel.TypeConverter {
     return [Base85]::Decode($text)
   }
   static [string] ToBase32String([byte[]]$bytes) {
+    if ([xget]::IsValidHex($bytes)) {
+      return [System.BitConverter]::ToString($bytes).Replace("-", "").ToLower()
+    }
     return [Base32]::Encode($bytes)
   }
   static [string] ToBase32String([string]$String) {
+    if ([xget]::IsValidHex($String)) {
+      return [Encoding]::UTF8.GetString(([byte[]] -split ($String -replace '..', '0x$& ')))
+    }
     return [Base32]::Encode($String)
   }
   static [string] ToBase32String([byte[]]$bytes, [bool]$Formatt) {
@@ -543,11 +540,11 @@ class xconvert : System.ComponentModel.TypeConverter {
   }
   static [string] ToProtected([string]$string) {
     $Scope = [ProtectionScope]::CurrentUser
-    $Entropy = [Encoding]::UTF8.GetBytes([xgen]::UniqueMachineId())[0..15];
+    $Entropy = [Encoding]::UTF8.GetBytes([xget]::UniqueMachineId())[0..15];
     return [xconvert]::Tostring([xconvert]::ToProtected([xconvert]::BytesFromObject($string), $Entropy, $Scope))
   }
   static [string] ToProtected([string]$string, [ProtectionScope]$Scope) {
-    $Entropy = [Encoding]::UTF8.GetBytes([xgen]::UniqueMachineId())[0..15];
+    $Entropy = [Encoding]::UTF8.GetBytes([xget]::UniqueMachineId())[0..15];
     return [xconvert]::Tostring([xconvert]::ToProtected([xconvert]::BytesFromObject($string), $Entropy, $Scope))
   }
   static [string] ToProtected([string]$string, [byte[]]$Entropy, [ProtectionScope]$Scope) {
@@ -555,11 +552,11 @@ class xconvert : System.ComponentModel.TypeConverter {
   }
   static [byte[]] ToProtected([byte[]]$Bytes) {
     $Scope = [ProtectionScope]::CurrentUser
-    $Entropy = [Encoding]::UTF8.GetBytes([xgen]::UniqueMachineId())[0..15];
+    $Entropy = [Encoding]::UTF8.GetBytes([xget]::UniqueMachineId())[0..15];
     return [xconvert]::ToProtected($bytes, $Entropy, $Scope)
   }
   static [byte[]] ToProtected([byte[]]$Bytes, [ProtectionScope]$Scope) {
-    $Entropy = [Encoding]::UTF8.GetBytes([xgen]::UniqueMachineId())[0..15];
+    $Entropy = [Encoding]::UTF8.GetBytes([xget]::UniqueMachineId())[0..15];
     return [xconvert]::ToProtected($bytes, $Entropy, $Scope)
   }
   static [byte[]] ToProtected([byte[]]$Bytes, [byte[]]$Entropy, [ProtectionScope]$Scope) {
@@ -578,11 +575,11 @@ class xconvert : System.ComponentModel.TypeConverter {
   }
   static [string] ToUnProtected([string]$string) {
     $Scope = [ProtectionScope]::CurrentUser
-    $Entropy = [Encoding]::UTF8.GetBytes([xgen]::UniqueMachineId())[0..15];
+    $Entropy = [Encoding]::UTF8.GetBytes([xget]::UniqueMachineId())[0..15];
     return [xconvert]::BytesToObject([xconvert]::ToUnProtected([xconvert]::BytesFromObject($string), $Entropy, $Scope))
   }
   static [string] ToUnProtected([string]$string, [ProtectionScope]$Scope) {
-    $Entropy = [Encoding]::UTF8.GetBytes([xgen]::UniqueMachineId())[0..15];
+    $Entropy = [Encoding]::UTF8.GetBytes([xget]::UniqueMachineId())[0..15];
     return [xconvert]::BytesToObject([xconvert]::ToUnProtected([xconvert]::BytesFromObject($string), $Entropy, $Scope))
   }
   static [string] ToUnProtected([string]$string, [byte[]]$Entropy, [ProtectionScope]$Scope) {
@@ -663,7 +660,7 @@ class xconvert : System.ComponentModel.TypeConverter {
     return $h
   }
   static [PSObject[]] ToFlatObject([PSObject[]]$InputObject) {
-    $op = [xgen]::Options
+    $op = [xget]::Options
     return [xconvert]::ToFlatObject($InputObject, $op.PropstoExclude, $op.SkipDefaults, $op.PropstoInclude, $op.Values, $op.MaxDepth)
   }
   static [PSObject[]] ToFlatObject([PSObject[]]$InputObject, [string[]]$PropstoExclude, [bool]$SkipDefaults, [string[]]$PropstoInclude, [string[]]$Values, [int]$MaxDepth) {
@@ -671,9 +668,9 @@ class xconvert : System.ComponentModel.TypeConverter {
     #   flatten an object to simplify discovery of data
     # .EXAMPLE
     #   $qs = Invoke-RestMethod "https://api.stackexchange.com/2.0/questions/unanswered?order=desc&sort=activity&tagged=powershell&pagesize=10&site=stackoverflow"
-    #   [xgen]::Options.Include = ("Title", "Link", "View_Count")
+    #   [xget]::Options.Include = ("Title", "Link", "View_Count")
     #   $ql = [xconvert]::ToFlatObject($qs)
-    $result = @(); [xgen]::Options = New-Object xObOptions -Property @{
+    $result = @(); [xget]::Options = New-Object xObOptions -Property @{
       PropstoExclude = $PropstoExclude
       PropstoInclude = $PropstoInclude
       SkipDefaults   = $SkipDefaults
@@ -681,7 +678,7 @@ class xconvert : System.ComponentModel.TypeConverter {
       Values         = $Values
     }
     foreach ($Object in $InputObject) {
-      $result += [xgen]::RecurseObject($Object, [PSObject]::new())
+      $result += [xget]::RecurseObject($Object, [PSObject]::new())
     }
     return $result
   }
@@ -705,7 +702,7 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return [xconvert]::ToHashTable($Properties, 0)
   }
-  static [Hashtable] ToHashTable  ([System.Management.Automation.PSPropertyInfo[]]$Properties, [int]$CurrentDepth) {
+  static [Hashtable] ToHashTable  ([PSPropertyInfo[]]$Properties, [int]$CurrentDepth) {
     $DepthThreshold = 32; $CurrentDepth++
     if ($CurrentDepth -ge $DepthThreshold) {
       Write-Error -Message "Converting to Hashtable reached Depth Threshold of 32 on $($Properties.Name -join ',')" -ErrorAction Stop
@@ -811,12 +808,12 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $bytes
   }
-  [Object[]]static BytesToObject([byte[]]$Bytes) {
+  static [Object[]] BytesToObject([byte[]]$Bytes) {
     if ($null -eq $Bytes) { return $null }
     # Deserialize the byte array
     return [xconvert]::ToDeserialized($Bytes)
   }
-  [Object[]]static BytesToObject([byte[]]$Bytes, [bool]$Unprotect) {
+  static [Object[]] BytesToObject([byte[]]$Bytes, [bool]$Unprotect) {
     if ($Unprotect) {
       $Bytes = [byte[]][xconvert]::ToUnProtected($Bytes)
     }
@@ -827,18 +824,18 @@ class xconvert : System.ComponentModel.TypeConverter {
   }
   static [byte[]] ToSerialized($Obj, [bool]$Force) {
     $bytes = $null
-    # Todo: Run tests to see if [System.Management.Automation.PSSerializer]::Serialize() can do better.
-    # When deseri~zr is using: [System.Management.Automation.PSSerializer]::Deserialize() or [System.Management.Automation.PSSerializer]::DeserializeAsList()
+    # Todo: Run tests to see if [PSSerializer]::Serialize() can do better.
+    # When deseri~zr is using: [PSSerializer]::Deserialize() or [PSSerializer]::DeserializeAsList()
     try {
       # Serialize the object using binaryFormatter: https://docs.microsoft.com/en-us/dotnet/api/system.runtime.serialization.formatters.binary.binaryformatter?
       $formatter = New-Object -TypeName System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
       $stream = New-Object -TypeName System.IO.MemoryStream
       $formatter.Serialize($stream, $Obj) # Serialise the graph
       $bytes = $stream.ToArray(); $stream.Close(); $stream.Dispose()
-    } catch [System.Management.Automation.MethodInvocationException], [System.Runtime.Serialization.SerializationException] {
+    } catch [MethodInvocationException], [SerializationException] {
       #Object can't be serialized, Lets try Marshalling: https://docs.microsoft.com/en-us/dotnet/api/System.Runtime.InteropServices.Marshal?
       $TypeName = $obj.GetType().Name; $obj = $obj -as $TypeName
-      if ($obj -isnot [System.Runtime.Serialization.ISerializable] -and $TypeName -in ("securestring", "Pscredential", "CredManaged")) { throw [System.Management.Automation.MethodInvocationException]::new("Cannot serialize an unmanaged structure") }
+      if ($obj -isnot [ISerializable] -and $TypeName -in ("securestring", "Pscredential", "CredManaged")) { throw [MethodInvocationException]::new("Cannot serialize an unmanaged structure") }
       if ($Force) {
         # Import the System.Runtime.InteropServices.Marshal namespace
         Add-Type -AssemblyName System.Runtime
@@ -848,21 +845,21 @@ class xconvert : System.ComponentModel.TypeConverter {
         [void][Marshal]::Copy($ptr, $bytes, 0, $size);
         [void][Marshal]::FreeHGlobal($ptr); # Free the memory allocated for the serialized object
       } else {
-        throw [System.Runtime.Serialization.SerializationException]::new("Serialization error. Make sure the object is marked with the [System.SerializableAttribute] or is Serializable.")
+        throw [SerializationException]::new("Serialization error. Make sure the object is marked with the [System.SerializableAttribute] or is Serializable.")
       }
     } catch {
       throw $_.Exception
     }
     return $bytes
   }
-  [Object[]]static ToDeserialized([byte[]]$data) {
-    $bf = [System.Runtime.Serialization.Formatters.Binary.BinaryFormatter]::new()
+  static [Object[]] ToDeserialized([byte[]]$data) {
+    $bf = [Formatters.Binary.BinaryFormatter]::new()
     $ms = [MemoryStream]::new(); $Obj = $null
     $ms.Write($data, 0, $data.Length);
     [void]$ms.Seek(0, [SeekOrigin]::Begin);
     try {
       $Obj = [object]$bf.Deserialize($ms)
-    } catch [System.Management.Automation.MethodInvocationException], [System.Runtime.Serialization.SerializationException] {
+    } catch [MethodInvocationException], [SerializationException] {
       $Obj = $ms.ToArray()
     } catch {
       throw $_.Exception
@@ -872,44 +869,45 @@ class xconvert : System.ComponentModel.TypeConverter {
     # Output the deserialized object
     return $Obj
   }
-  static [BitArray] FromString([string]$string) {
+  static [BitArray] ToBitArray([string]$binary) {
+    # .EXAMPLE
+    # [string][xconvert]::BinaryToString([xconvert]::ToBitArray($BinStR))
+    return [BitArray]::new([xconvert]::FromBitArrayString($binary))
+  }
+  static [string] ToBitArrayString([byte[]]$Bytes) {
+    return [xconvert]::ToBitArrayString($Bytes, $true);
+  }
+  static [string] ToBitArrayString([byte[]]$Bytes, [bool]$Tidy) {
+    $b = [BitArray]::new($Bytes);
+    return [xconvert]::ToBitArrayString($b, $Tidy);
+  }
+  static [string] ToBitArrayString([BitArray]$binary) {
+    $BinStR = [string]::Empty # (Binary String)
+    for ($i = 0; $i -lt $binary.Length; $i++) {
+      if ($binary[$i]) {
+        $BinStR += "1 ";
+      } else {
+        $BinStR += "0 ";
+      }
+    }
+    return $BinStR.Trim()
+  }
+  static [string] ToBitArrayString([BitArray]$binary, [bool]$Tidy) {
+    [string]$binStr = [xconvert]::ToBitArrayString($binary)
+    if ($Tidy) { $binStr = [string]::Join('', $binStr.Split()) }
+    return $binStr
+  }
+  static [string] ToBitArrayString ([string]$string) {
+    return [xconvert]::ToBitArrayString($string, $false)
+  }
+  static [string] ToBitArrayString ([string]$string, [bool]$Tidy) {
     [string]$BinStR = [string]::Empty;
     foreach ($ch In $string.ToCharArray()) {
       $BinStR += [Convert]::ToString([int]$ch, 2).PadLeft(8, '0');
     }
-    return [xconvert]::FromBinStR($BinStR)
+    return [xconvert]::ToBitArrayString([xconvert]::FromBitArrayString($BinStR), $Tidy)
   }
-  static [string] BinaryToString([BitArray]$BitArray) {
-    [string]$finalString = [string]::Empty;
-    # Manually read the first 8 bits and
-    while ($BitArray.Length -gt 0) {
-      $ba_tempBitArray = [BitArray]::new($BitArray.Length - 8);
-      $int_binaryValue = 0;
-      if ($BitArray[0]) { $int_binaryValue += 1 };
-      if ($BitArray[1]) { $int_binaryValue += 2 };
-      if ($BitArray[2]) { $int_binaryValue += 4 };
-      if ($BitArray[3]) { $int_binaryValue += 8 };
-      if ($BitArray[4]) { $int_binaryValue += 16 };
-      if ($BitArray[5]) { $int_binaryValue += 32 };
-      if ($BitArray[6]) { $int_binaryValue += 64 };
-      if ($BitArray[7]) { $int_binaryValue += 128 };
-      $finalString += [Char]::ConvertFromUtf32($int_binaryValue);
-      $int_counter = 0;
-      for ($i = 8; $i -lt $BitArray.Length; $i++) {
-        $ba_tempBitArray[$int_counter++] = $BitArray[$i];
-      }
-      $BitArray = $ba_tempBitArray;
-    }
-    return $finalString;
-  }
-  static [string] BytesToBinStR([byte[]]$Bytes) {
-    return [xconvert]::BytesToBinStR($Bytes, $true);
-  }
-  static [string] BytesToBinStR([byte[]]$Bytes, [bool]$Tidy) {
-    $bitArray = [BitArray]::new($Bytes);
-    return [xconvert]::ToBinStR($bitArray, $Tidy);
-  }
-  static [byte[]] BytesFromBinStR([string]$binary) {
+  static [byte[]] FromBitArrayString([string]$binary) {
     $binary = [string]::Join('', $binary.Split())
     $length = $binary.Length; if ($length % 8 -ne 0) {
       Throw [InvalidDataException]::new("Your string is invalid. Make sure it has no typos.")
@@ -922,54 +920,13 @@ class xconvert : System.ComponentModel.TypeConverter {
     return $list.ToArray();
   }
   static [byte[]] BytesFromBinary([BitArray]$binary) {
-    return [xconvert]::BytesFromBinStR([xconvert]::ToBinStR($binary))
-  }
-  static [string] ToBinStR([BitArray]$binary) {
-    $BinStR = [string]::Empty # (Binary String)
-    for ($i = 0; $i -lt $binary.Length; $i++) {
-      if ($binary[$i]) {
-        $BinStR += "1 ";
-      } else {
-        $BinStR += "0 ";
-      }
-    }
-    return $BinStR.Trim()
-  }
-  static [string] ToBinStR([BitArray]$binary, [bool]$Tidy) {
-    [string]$binStr = [xconvert]::ToBinStR($binary)
-    if ($Tidy) { $binStr = [string]::Join('', $binStr.Split()) }
-    return $binStr
-  }
-  static [BitArray] FromBinStR([string]$binary) {
-    # .EXAMPLE
-    # [string][xconvert]::BinaryToString([xconvert]::FromBinStR($BinStR))
-    return [BitArray]::new([xconvert]::BytesFromBinStR($binary))
-  }
-  static [void] ObjectToFile($Object, [string]$OutFile) {
-    [xconvert]::ObjectToFile($Object, $OutFile, $false);
-  }
-  static [void] ObjectToFile($Object, [string]$OutFile, [bool]$encrypt) {
-    try {
-      $OutFile = [xgen]::UnResolvedPath($OutFile)
-      try {
-        $resolved = [xgen]::ResolvedPath($OutFile);
-        if ($?) { $OutFile = $resolved }
-      } catch [System.Management.Automation.ItemNotFoundException] {
-        New-Item -Path $OutFile -ItemType File | Out-Null
-      } catch {
-        throw $_
-      }
-      Export-Clixml -InputObject $Object -Path $OutFile
-      if ($encrypt) { $(Get-Item $OutFile).Encrypt() }
-    } catch {
-      Write-Error $_
-    }
+    return [xconvert]::FromBitArrayString([xconvert]::ToBitArrayString($binary))
   }
   static [Object[]] ToOrdered($InputObject) {
     $obj = $InputObject
     $convert = [scriptBlock]::Create({
         Param($obj)
-        if ($obj -is [System.Management.Automation.PSCustomObject]) {
+        if ($obj -is [PSCustomObject]) {
           # a custom object: recurse on its properties
           $oht = [ordered]@{}
           foreach ($prop in $obj.psobject.Properties) {
@@ -987,14 +944,14 @@ class xconvert : System.ComponentModel.TypeConverter {
     )
     return $(Invoke-Command -ScriptBlock $convert -ArgumentList $obj)
   }
-  static [object] ObjectFromFile([string]$FilePath) {
-    return [xconvert]::ObjectFromFile($FilePath, $false)
+  static [object] ToObject([IO.FileInfo]$File) {
+    return [xconvert]::ToObject($File.FullName, $false)
   }
-  static [object] ObjectFromFile([string]$FilePath, [string]$Type) {
-    return [xconvert]::ObjectFromFile($FilePath, $Type, $false);
+  static [object] ToObject([IO.FileInfo]$File, [string]$Type) {
+    return [xconvert]::ToObject($File.FullName, $Type, $false);
   }
-  static [object] ObjectFromFile([string]$FilePath, [bool]$Decrypt) {
-    $FilePath = [xgen]::ResolvedPath($FilePath); $Object = $null
+  static [object] ToObject([IO.FileInfo]$File, [bool]$Decrypt) {
+    $FilePath = [xget]::ResolvedPath($File.FullName); $Object = $null
     try {
       if ($Decrypt) { $(Get-Item $FilePath).Decrypt() }
       $Object = Import-Clixml -Path $FilePath
@@ -1003,8 +960,8 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $Object
   }
-  static [object] ObjectFromFile([string]$FilePath, [string]$Type, [bool]$Decrypt) {
-    $FilePath = [xgen]::ResolvedPath($FilePath); $Object = $null
+  static [object] ToObject([IO.FileInfo]$File, [string]$Type, [bool]$Decrypt) {
+    $FilePath = [xget]::ResolvedPath($File.FullName); $Object = $null
     try {
       if ($Decrypt) { $(Get-Item $FilePath).Decrypt() }
       $Object = (Import-Clixml -Path $FilePath) -as "$Type"
@@ -1013,7 +970,30 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $Object
   }
-  static [string] HtmlToAnsi([string]$HtmlCode) {
+  static [IO.FileInfo] FromObject($Object, [string]$OutFile) {
+    return [xconvert]::FromObject($Object, $OutFile, $false);
+  }
+  static [IO.FileInfo] FromObject($Object, [string]$OutFile, [bool]$encrypt) {
+    $OutFile = $null
+    try {
+      $OutFile = [xget]::UnResolvedPath($OutFile)
+      try {
+        $resolved = [xget]::ResolvedPath($OutFile);
+        if ($?) { $OutFile = $resolved }
+      } catch [ItemNotFoundException] {
+        New-Item -Path $OutFile -ItemType File | Out-Null
+      } catch {
+        throw $_
+      }
+      Export-Clixml -InputObject $Object -Path $OutFile
+      $OutFile = Get-Item $OutFile
+      if ($encrypt) { $OutFile.Encrypt() }
+    } catch {
+      Write-Error $_
+    }
+    return $OutFile
+  }
+  static [string] ToAnsi([string]$HtmlCode) {
     [ValidatePattern('^#\w{6}$')][string]$HtmlCode = $HtmlCode
     $code = [System.Drawing.ColorTranslator]::FromHtml($htmlCode)
     $ansi = '[38;2;{0};{1};{2}m' -f $code.R, $code.G, $code.B
@@ -1164,11 +1144,11 @@ class xconvert : System.ComponentModel.TypeConverter {
     $low = $text.toLower()
     return (Get-Culture).TextInfo.ToTitleCase($low)
   }
-  [string] ToIndentedString([string]$ScriptText) {
+  [string] ToIndented([string]$ScriptText) {
     $CurrentLevel = 0
     $ParseError = $null
     $Tokens = $null
-    [void][System.Management.Automation.Language.Parser]::ParseInput($ScriptText, [ref]$Tokens, [ref]$ParseError)
+    [void][Language.Parser]::ParseInput($ScriptText, [ref]$Tokens, [ref]$ParseError)
     if ($ParseError) {
       $ParseError | Write-Error
       throw 'The parser will not work properly with errors in the script, please modify based on the above errors and retry.'
@@ -1200,7 +1180,7 @@ class xconvert : System.ComponentModel.TypeConverter {
     if ($null -ne $ms) { $ms.Flush(); $ms.Close(); $ms.Dispose() } else { Write-Warning "[x] MemoryStream was Not closed!" };
     return $arr;
   }
-  static hidden [string] Reverse([string]$text) {
+  static [string] ToReverse([string]$text) {
     [char[]]$array = $text.ToCharArray(); [array]::Reverse($array);
     return [String]::new($array);
   }
@@ -1253,7 +1233,7 @@ function script:Get-xconvertdata {
     }
     $AST = [Parser]::ParseFile($Path, [ref]$Tokens, [ref]$ParseErrors)
     $KeyValue = $Ast.EndBlock.Statements
-    $KeyValue = @([xgen]::FindHashKeyValue($PropertyName, $KeyValue))
+    $KeyValue = @([xget]::FindHashKeyValue($PropertyName, $KeyValue))
     if ($KeyValue.Count -eq 0) {
       $Error_params = @{
         ExceptionName    = "ItemNotFoundException"
@@ -1291,7 +1271,7 @@ $typestoExport = @(
   [EncodKit],
   [xconvert],
   [Base85],
-  [xgen]
+  [xget]
 )
 $TypeAcceleratorsClass = [psobject].Assembly.GetType('System.Management.Automation.TypeAccelerators')
 foreach ($Type in $typestoExport) {
@@ -1301,10 +1281,10 @@ foreach ($Type in $typestoExport) {
       'Accelerator already exists.'
     ) -join ' - '
 
-    throw [System.Management.Automation.ErrorRecord]::new(
+    throw [ErrorRecord]::new(
       [System.InvalidOperationException]::new($Message),
       'TypeAcceleratorAlreadyExists',
-      [System.Management.Automation.ErrorCategory]::InvalidOperation,
+      [ErrorCategory]::InvalidOperation,
       $Type.FullName
     )
   }
