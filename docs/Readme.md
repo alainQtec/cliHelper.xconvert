@@ -25,7 +25,7 @@ Usage docs go here...
   - [x] Url-encoding
   - [ ] DecimalIPv4
   - [ ] functions convert data type to another (string, integer, datetime ...)
-  - [ ] functions to convert encodings (ASCII, UTF-8, base32 ...)
+  - [x] functions to convert encodings (ASCII, UTF-8, base32 ...)
   - [ ] Binary manipulation
   - [ ] audio-video conversion (why not)
   - [ ] functions to convert between visualization formats
