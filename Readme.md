@@ -52,8 +52,6 @@ Then you can do stuff like:
 
 <p>
 ie: since xconvert is an alias for the public funtion <a href="./Public/Invoke-Converter.ps1">Invoke-Converter</a>.
-</br>
-Note: Tab argumant completion is still ᴡɪᴘ &will ship in v0.1.3
 </p>
 
 ⤷ **2. Chain⫘⫘ing and piping public function(s)**
