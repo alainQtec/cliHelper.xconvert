@@ -16,12 +16,12 @@ function Invoke-Converter {
     [Parameter(Mandatory = $false, Position = 0)]
     [Alias('m')][ValidateNotNullOrEmpty()]
     [ArgumentCompleter({
-        [OutputType([CompletionResult])]
+        [OutputType([System.Management.Automation.CompletionResult])]
         param(
           [string] $CommandName,
           [string] $ParameterName,
           [string] $WordToComplete,
-          [Language.CommandAst] $CommandAst,
+          [System.Management.Automation.Language.CommandAst] $CommandAst,
           [System.Collections.IDictionary] $FakeBoundParameters
         )
         $CompletionResults = [System.Collections.Generic.List[CompletionResult]]::new()
@@ -29,7 +29,7 @@ function Invoke-Converter {
         foreach ($method in $matchingMethods) {
           $paramst = ($method.GetParameters() | Select-Object @{l = '_'; e = { "[$($_.ParameterType.Name)]`$$($_.Name)" } })._ -join ', '
           $toolTip = "{0}({1}) -> {2}" -f $method.Name, $paramst, $method.ReturnType.Name
-          $completionResult = [CompletionResult]::new(
+          $completionResult = [System.Management.Automation.CompletionResult]::new(
             $method.Name, # CompletionText
             $method.Name, # ListItemText
             'Method',
