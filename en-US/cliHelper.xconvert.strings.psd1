@@ -4,7 +4,8 @@
   ReleaseNotes  = @"
 # Changelog`n`n
 
-- Invoke-Converter is the only cmdlet :D
+- Now Method Names make sense. they either start with `From` or `To`👌
+- Invoke-Converter is the only cmdlet 😊
 - Easy method chaining and Pipeline stuff
 - Added argument completion for method names
 
