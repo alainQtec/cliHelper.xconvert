@@ -4,15 +4,15 @@ function Invoke-Converter {
   # .DESCRIPTION
   #  Creates a custom Converter object and Invokes methods on it.
   # .EXAMPLE
-  #  $enc_Pass = "HelloWorld" | Xconvert ToBase32String, ToObfuscated, ToSecurestring
+  #  $enc_Pass = "HelloWorld" | xconvert ToBase32String, ToObfuscated, ToSecurestring
   #  $txt_Pass = $enc_Pass | xconvert ToString, FromObfuscated, FromBase32String, ToInt32, Tostring
   #  $txt_Pass | Should -Be "HelloWorld"
-  # Thats chaining methods
+  #  Thats chaining methods
   [CmdletBinding()]
   [Alias('xconvert')]
   [OutputType({ [xconvert]::ReturnTypes })]
   param(
-    [Parameter(Position = 0)]
+    [Parameter(Mandatory = $false, Position = 0)]
     [Alias('m')][ValidateNotNullOrEmpty()]
     [ArgumentCompleter({
         [OutputType([System.Management.Automation.CompletionResult])]
@@ -24,8 +24,7 @@ function Invoke-Converter {
           [System.Collections.IDictionary] $FakeBoundParameters
         )
         $CompletionResults = [System.Collections.Generic.List[System.Management.Automation.CompletionResult]]::new()
-        $staticMethods = [xconvert].GetMethods().Where({ $_.IsStatic -and !$_.IsHideBySig }) | Sort-Object -Unique Name
-        $matchingMethods = $staticMethods | Where-Object { $_.Name -like "$WordToComplete*" }
+        $matchingMethods = [xconvert]::Methods.Where({ $_.Name -like "$WordToComplete*" })
         foreach ($method in $matchingMethods) {
           $paramst = ($method.GetParameters() | Select-Object @{l = '_'; e = { "[$($_.ParameterType.Name)]`$$($_.Name)" } })._ -join ', '
           $toolTip = "{0}({1}) -> {2}" -f $method.Name, $paramst, $method.ReturnType.Name
@@ -41,26 +40,36 @@ function Invoke-Converter {
       })]
     [string[]]$Method,
 
-    [Parameter(Position = 1, ValueFromPipeline = $true)]
+    [Parameter(Mandatory = $false, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
     [Alias('i')][ValidateNotNullOrEmpty()]
     $object
   )
-
   begin {
+    $c = [xconvert]::new()
+  }
+  process {
+    $InvalidMethods = $Method.Where({ $_ -notin [xconvert]::Methods.Name })
+    if ($InvalidMethods.Count -gt 0) {
+      $PSCmdlet.ThrowTerminatingError([System.Management.Automation.ErrorRecord]::new(
+          [System.InvalidOperationException]::new("Please use valid method names",
+            [System.Management.Automation.MethodInvocationException]::new("Methods ($($InvalidMethods -join ', ')) not found")),
+          "METHOD_NOT_FOUND",
+          "InvalidArgument",
+          $null
+        )
+      )
+    }
+    # $PSBoundParameters.GetEnumerator() | ForEach-Object { Write-Debug "$($_.Key) = $($_.Value)" -Debug }
     if ($PSBoundParameters.ContainsKey("Method") -and !$PSBoundParameters.ContainsKey("object")) {
       $PSCmdlet.ThrowTerminatingError(
         [System.Management.Automation.ErrorRecord]::new(
-          [System.ArgumentNullException]::new("object", "You must supply a value for -object when using -Method"),
+          [System.ArgumentNullException]::new("Object", "You must supply a value for -object when using -Method"),
           "Parameter cannot be null or empty",
           "InvalidArgument",
           $null
         )
       )
     }
-    $c = [xconvert]::new()
-  }
-
-  process {
     if ($object) {
       $r = $object
       $Method.ForEach({ $r = $c::$_($r) })
@@ -68,7 +77,6 @@ function Invoke-Converter {
       $r = $c
     }
   }
-
   end {
     return $r
   }
