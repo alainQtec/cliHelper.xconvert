@@ -118,4 +118,4 @@ For more, checkout the [progress](./docs/Readme.md)
 
 Thank you.
 
-![Alt](https://repobeats.axiom.co/api/embed/9cbc0ffce6f62ace082852045cd005b5ad61cebd.svg "Repobeats analytics image")
+![Alt](https://repobeats.axiom.co/api/embed/d89af108bf024aef37b230136bf3883b83aa8386.svg "Repobeats analytics image")
