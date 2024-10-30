@@ -1,5 +1,6 @@
 using namespace System.IO
 using namespace System.Text
+using namespace System.Reflection
 using namespace System.Collections
 using namespace System.Runtime.InteropServices
 using module Private/cliHelper.xconvert.Utils
@@ -31,7 +32,8 @@ enum dateFormat {
 #   Extended version of built in [convert] class
 class xconvert : System.ComponentModel.TypeConverter {
   static hidden [PsObject] $LocalizedData = (Get-xconvertdata)
-  static hidden [Type[]] $ReturnTypes = ([xconvert].GetMethods().Where({ $_.IsStatic -and !$_.IsHideBySig }).ReturnType | Sort-Object -Unique Name)
+  static hidden [MethodInfo[]] $Methods = [xconvert].GetMethods().Where({ $_.IsStatic -and !$_.IsHideBySig })
+  static hidden [Type[]] $ReturnTypes = ([xconvert]::Methods.ReturnType | Sort-Object -Unique Name)
   xconvert() {}
   static [string] Base32ToHex([string]$base32String) {
     return [System.BitConverter]::ToString([Encoding]::UTF8.GetBytes($base32String)).Replace("-", "").ToLower()
