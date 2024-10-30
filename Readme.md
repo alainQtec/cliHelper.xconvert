@@ -61,9 +61,9 @@ Note: Tab argumant completion is still ᴡɪᴘ &will ship in v0.1.3
 ex: do stuff like
 
 ```PowerShell
-$enc_Pass = "HelloWorld" | Xconvert ToBase32String, ToObfuscated, ToSecurestring
-# then reverse:
-$txt_Pass = $enc_Pass | xconvert -m ToString, FromObfuscated, FromBase32String, ToInt32, Tostring
+$enc_Pass = "HelloWorld" | xconvert ToBase32String, ToObfuscated, ToSecurestring
+# then reverse it:
+$txt_Pass = $enc_Pass | xconvert ToString, FromObfuscated, FromBase32String, ToInt32, Tostring
 $txt_Pass | Should -Be "HelloWorld"
 # Metal 🔥 ⚡︎ 🤘
 ```
