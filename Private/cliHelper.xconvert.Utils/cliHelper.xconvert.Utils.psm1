@@ -231,7 +231,7 @@ class Base32 : EncodingBase {
   static [string] Encode([Stream]$Stream, [bool]$Formatt) {
     # .EXAMPLE
     # $b32 = [Base32]::Encode("hello world!")
-    # $text = [String]::Join([string]::Empty, [Base32]::ToString([int[]][Base32]::FromBase32String($b32)))
+    # $text = [String]::Join([string]::Empty, [Base32]::ToString([int[]][Base32]::Decode($b32)))
     $BinaryReader = [BinaryReader]::new($Stream); $B32CHARSET = [Base32]::charset
     $Base32Output = [StringBuilder]::new(); $result = [string]::Empty
     # Write-Verbose "[Base32] Encoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
@@ -796,6 +796,23 @@ class xget {
       }
       return $ParsedText
     }
+  }
+  static [Hashtable] RegexMatch([regex]$Regex, [RegularExpressions.Match]$Match) {
+    if (!$Match.Groups[0].Success) {
+      throw New-Object System.ArgumentException('Match does not contain any captures.', 'Match')
+    }
+    $h = @{}
+    foreach ($name in $Regex.GetGroupNames()) {
+      if ($name -eq 0) {
+        continue
+      }
+      $h.$name = $Match.Groups[$name].Value
+    }
+    return $h
+  }
+  static [string] RegexEscape([string]$LiteralText) {
+    if ([string]::IsNullOrEmpty($LiteralText)) { $LiteralText = [string]::Empty }
+    return [regex]::Escape($LiteralText);
   }
   static [bool] IsValidHex([string]$Text) {
     return [regex]::IsMatch($Text, '^#?([a-f0-9]{6}|[a-f0-9]{3})$')
