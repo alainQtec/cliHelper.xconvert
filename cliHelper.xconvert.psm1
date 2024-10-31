@@ -37,9 +37,6 @@ class xconvert : System.ComponentModel.TypeConverter {
   static hidden [MethodInfo[]] $Methods = [xconvert].GetMethods().Where({ $_.IsStatic -and !$_.IsHideBySig })
   static hidden [Type[]] $ReturnTypes = ([xconvert]::Methods.ReturnType | Sort-Object -Unique Name)
   xconvert() {}
-  static [int[]] ToInt32([byte[]]$Bytes) {
-    return [int[]]$Bytes
-  }
   static [string] ToString([byte[]]$Bytes) {
     # We could do: [xconvert]::Tostring([int[]]$bytes); but lots of data is lost when decoding back ...
     return [string][System.Convert]::ToBase64String($Bytes);
@@ -276,13 +273,19 @@ class xconvert : System.ComponentModel.TypeConverter {
     $SecureString.MakeReadOnly();
     return $SecureString
   }
-  static [int[]] ToCharCode([string[]]$string) {
+  static [int[]] ToInt32([byte[]]$Bytes) {
+    return [int[]]$Bytes
+  }
+  static [int[]] ToInt32([string[]]$string) {
     [bool]$encoderShouldEmitUTF8Identifier = $false; $Codes = @()
     $Encodr = [UTF8Encoding]::new($encoderShouldEmitUTF8Identifier)
     for ($i = 0; $i -lt $string.Count; $i++) {
       $Codes += [int[]]$($Encodr.GetBytes($string[$i]))
     }
     return $Codes;
+  }
+  static [string[]] FromInt32([int[]]$Codes) {
+    return [string[]]$Codes
   }
   static [bool] ToBoolean([string]$Text) {
     $Text = switch -Wildcard ($Text) {
@@ -513,40 +516,40 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $OutputObject
   }
-  static [byte[]] FromBase32String([string]$string) {
+  static [byte[]] FromBase32([string]$string) {
     return [Base32]::Decode($string)
   }
-  static [byte[]] FromBase58String([string]$text) {
+  static [byte[]] FromBase58([string]$text) {
     return [Base58]::Decode($text)
   }
-  static [byte[]] FromBase85String([string]$text) {
+  static [byte[]] FromBase85([string]$text) {
     return [Base85]::Decode($text)
   }
-  static [string] ToBase32String([byte[]]$bytes) {
+  static [string] ToBase32([byte[]]$bytes) {
     if ([xget]::IsValidHex($bytes)) {
       return [System.BitConverter]::ToString($bytes).Replace("-", "").ToLower()
     }
     return [Base32]::Encode($bytes)
   }
-  static [string] ToBase32String([string]$String) {
+  static [string] ToBase32([string]$String) {
     if ([xget]::IsValidHex($String)) {
       return [Encoding]::UTF8.GetString(([byte[]] -split ($String -replace '..', '0x$& ')))
     }
     return [Base32]::Encode($String)
   }
-  static [string] ToBase32String([byte[]]$bytes, [bool]$Formatt) {
+  static [string] ToBase32([byte[]]$bytes, [bool]$Formatt) {
     return [Base32]::Encode($bytes, $Formatt)
   }
-  static [string] ToBase32String([string]$String, [bool]$Formatt) {
+  static [string] ToBase32([string]$String, [bool]$Formatt) {
     return [Base32]::Encode($String, $Formatt)
   }
-  static [string] ToBase32String([Stream]$Stream, [bool]$Formatt) {
+  static [string] ToBase32([Stream]$Stream, [bool]$Formatt) {
     return [Base32]::Encode($Stream, $Formatt)
   }
-  static [string] ToBase58String([byte[]]$bytes) {
+  static [string] ToBase58([byte[]]$bytes) {
     return [Base58]::Encode($bytes)
   }
-  static [string] ToBase85String([byte[]]$bytes) {
+  static [string] ToBase85([byte[]]$bytes) {
     return [Base85]::GetString($bytes)
   }
   static [string] ToProtected([string]$string) {
@@ -584,19 +587,19 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $encryptedData
   }
-  static [string] ToUnProtected([string]$string) {
+  static [string] FromProtected([string]$string) {
     $Scope = [ProtectionScope]::CurrentUser
     $Entropy = [Encoding]::UTF8.GetBytes([xget]::UniqueMachineId())[0..15];
-    return [xconvert]::FromBytes([xconvert]::ToUnProtected([xconvert]::ToBytes($string), $Entropy, $Scope))
+    return [xconvert]::FromBytes([xconvert]::FromProtected([xconvert]::ToBytes($string), $Entropy, $Scope))
   }
-  static [string] ToUnProtected([string]$string, [ProtectionScope]$Scope) {
+  static [string] FromProtected([string]$string, [ProtectionScope]$Scope) {
     $Entropy = [Encoding]::UTF8.GetBytes([xget]::UniqueMachineId())[0..15];
-    return [xconvert]::FromBytes([xconvert]::ToUnProtected([xconvert]::ToBytes($string), $Entropy, $Scope))
+    return [xconvert]::FromBytes([xconvert]::FromProtected([xconvert]::ToBytes($string), $Entropy, $Scope))
   }
-  static [string] ToUnProtected([string]$string, [byte[]]$Entropy, [ProtectionScope]$Scope) {
-    return [xconvert]::FromBytes([xconvert]::ToUnProtected([xconvert]::ToBytes($string), $Entropy, $Scope))
+  static [string] FromProtected([string]$string, [byte[]]$Entropy, [ProtectionScope]$Scope) {
+    return [xconvert]::FromBytes([xconvert]::FromProtected([xconvert]::ToBytes($string), $Entropy, $Scope))
   }
-  static [byte[]] ToUnProtected([byte[]]$Bytes, [byte[]]$Entropy, [ProtectionScope]$Scope) {
+  static [byte[]] FromProtected([byte[]]$Bytes, [byte[]]$Entropy, [ProtectionScope]$Scope) {
     $decryptedData = $null;
     try {
       if (!("System.Security.Cryptography.ProtectedData" -is 'Type')) { Add-Type -AssemblyName System.Security }
@@ -631,13 +634,13 @@ class xconvert : System.ComponentModel.TypeConverter {
     [byte[]]$OutPut = $outstream.ToArray(); $outStream.Close()
     return $OutPut;
   }
-  static [byte[]] ToDeCompressed([byte[]]$Bytes) {
-    return [xconvert]::ToDeCompressed($Bytes, 'Gzip');
+  static [byte[]] FromCompressed([byte[]]$Bytes) {
+    return [xconvert]::FromCompressed($Bytes, 'Gzip');
   }
-  static [string] ToDecompressed([string]$Base64Text) {
-    return [Encoding]::UTF8.GetString([xconvert]::ToDecompressed([convert]::FromBase64String($Base64Text)));
+  static [string] FromCompressed([string]$Base64Text) {
+    return [Encoding]::UTF8.GetString([xconvert]::FromCompressed([convert]::FromBase64String($Base64Text)));
   }
-  static [byte[]] ToDeCompressed([byte[]]$Bytes, [string]$Compression) {
+  static [byte[]] FromCompressed([byte[]]$Bytes, [string]$Compression) {
     if (("$Compression" -as 'Compression') -isnot 'Compression') {
       Throw [System.InvalidCastException]::new("Compression type '$Compression' is unknown! Valid values: $([Enum]::GetNames([compression]) -join ', ')");
     }
@@ -652,23 +655,6 @@ class xconvert : System.ComponentModel.TypeConverter {
     [void]$Comstream.CopyTo($outStream); $Comstream.Close(); $Comstream.Dispose(); $inpStream.Close()
     [byte[]]$OutPut = $outstream.ToArray(); $outStream.Close()
     return $OutPut;
-  }
-  static [string] ToRegexEscapedString([string]$LiteralText) {
-    if ([string]::IsNullOrEmpty($LiteralText)) { $LiteralText = [string]::Empty }
-    return [regex]::Escape($LiteralText);
-  }
-  static [Hashtable] FromRegexCapture([RegularExpressions.Match]$Match, [regex]$Regex) {
-    if (!$Match.Groups[0].Success) {
-      throw New-Object System.ArgumentException('Match does not contain any captures.', 'Match')
-    }
-    $h = @{}
-    foreach ($name in $Regex.GetGroupNames()) {
-      if ($name -eq 0) {
-        continue
-      }
-      $h.$name = $Match.Groups[$name].Value
-    }
-    return $h
   }
   static [PSObject[]] ToFlatObject([PSObject[]]$InputObject) {
     $op = [xget]::Options
@@ -816,7 +802,7 @@ class xconvert : System.ComponentModel.TypeConverter {
         break
       }
       'BitArray' {
-        [xconvert]::FromBitArrayString([xconvert]::ToBitArrayString($obj));
+        [xconvert]::FromBitArray([xconvert]::ToBitArrayString($obj));
         break
       }
       Default {
@@ -895,14 +881,15 @@ class xconvert : System.ComponentModel.TypeConverter {
   static [Object[]] FromBytes([byte[]]$data, [bool]$Unprotect) {
     if ($null -eq $data) { return $null }
     if ($Unprotect) {
-      return [xconvert]::FromBytes([byte[]][xconvert]::ToUnProtected($data))
+      return [xconvert]::FromBytes([byte[]][xconvert]::FromProtected($data))
     }
     return [xconvert]::FromBytes($data);
   }
-  static [BitArray] ToBitArray([string]$binary) {
-    # .EXAMPLE
-    # [string][xconvert]::BinaryToString([xconvert]::ToBitArray($BinStR))
-    return [BitArray]::new([xconvert]::FromBitArrayString($binary))
+  static [BitArray] ToBitArray([string]$string) {
+    return [xconvert]::ToBitArray([xconvert]::ToBytes($string))
+  }
+  static [BitArray] ToBitArray([byte[]]$Bytes) {
+    return [BitArray]::new($Bytes)
   }
   static [string] ToBitArrayString([byte[]]$Bytes) {
     return [xconvert]::ToBitArrayString($Bytes, $true);
@@ -935,9 +922,9 @@ class xconvert : System.ComponentModel.TypeConverter {
     foreach ($ch In $string.ToCharArray()) {
       $BinStR += [Convert]::ToString([int]$ch, 2).PadLeft(8, '0');
     }
-    return [xconvert]::ToBitArrayString([xconvert]::FromBitArrayString($BinStR), $Tidy)
+    return [xconvert]::ToBitArrayString([xconvert]::FromBitArray($BinStR), $Tidy)
   }
-  static [byte[]] FromBitArrayString([string]$binary) {
+  static [byte[]] FromBitArray([string]$binary) {
     $binary = [string]::Join('', $binary.Split())
     $length = $binary.Length; if ($length % 8 -ne 0) {
       Throw [InvalidDataException]::new("Your string is invalid. Make sure it has no typos.")
@@ -1025,6 +1012,24 @@ class xconvert : System.ComponentModel.TypeConverter {
     $code = [System.Drawing.ColorTranslator]::FromHtml($htmlCode)
     $ansi = '[38;2;{0};{1};{2}m' -f $code.R, $code.G, $code.B
     return $ansi
+  }
+  static [string] FromAnsi([string]$AnsiCode) {
+    # Validate and extract RGB values from ANSI code
+    if ($AnsiCode -notmatch '^\[38;2;(\d{1,3});(\d{1,3});(\d{1,3})m$') {
+      throw [System.ArgumentException]::new("Invalid ANSI color code format. Expected format: [38;2;R;G;B]m")
+    }
+    # Extract RGB values
+    $r = [int]$Matches[1]
+    $g = [int]$Matches[2]
+    $b = [int]$Matches[3]
+    # Validate RGB ranges
+    if (($r -lt 0 -or $r -gt 255) -or ($g -lt 0 -or $g -gt 255) -or ($b -lt 0 -or $b -gt 255)) {
+      throw [System.ArgumentException]::new("RGB values must be between 0 and 255")
+    }
+    # Convert to HTML hex code
+    $color = [System.Drawing.Color]::FromArgb($r, $g, $b)
+    $htmlCode = [System.Drawing.ColorTranslator]::ToHtml($color)
+    return $htmlCode
   }
   static [datetime] ToUtcDate([datetime]$Date) {
     return [xconvert]::ToUtcDate(@($Date))[0]
