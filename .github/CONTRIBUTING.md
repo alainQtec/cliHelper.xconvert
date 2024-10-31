@@ -12,16 +12,21 @@ help us make it better.
 If you are new, here are some things to know:
 
 1. Add a new method to xconvert class. Trust me there are a lot of methods to
-   add. you just have to look for them. I mean, For each method added there
-   should be counter-method. For example:
-   - ToBase32String ↔ FromBase32String
+   add. you just have to look for them. I mean, For each method you add there
+   should be counter-method for it. For example:
+   - ToBase32 💱 FromBase32
 
-   You can check all missing ones like this:
+   You can get a quick overview by running `show-MethodsOverview`:
 
    ```PowerShell
-   $xmethods = [xconvert].GetMethods().Where({ $_.IsStatic -and !$_.IsHideBySig }).name | Sort-Object -Unique;
-   $analysis = $nn | select @{l="To"; e={"To"+$_}}, @{l="From"; e={"From"+$_}}, @{l='HasBoth'; e={ $xmethods -contains "To$_" -and $xmethods -contains "From$_" }}
-   $analysis.Where({ !$_.HasBoth }) | Select-Object *, @{l="HasTo"; e={ $xmethods -contains $_.To}}, @{l="HasFrom"; e={ $xmethods -contains $_.From } } | Format-Table
+   function show-MethodsOverview() {
+     $mark = @{ True = "✅"; False = "😒"}
+     $xmethods = [xconvert].GetMethods().Where({ $_.IsStatic -and !$_.IsHideBySig }).name | Sort-Object -Unique;
+     $analysis = $xmethods | % { $_.Replace('To', "").Replace('From', "") } | Sort-Object -Unique | Select-Object @{l="Name"; e={$_} }, @{l='HasBoth'; e={ $xmethods -contains "To$_" -and $xmethods -contains "From$_" }};
+     $hasBoth = $analysis.Where({ $_.HasBoth }); $doesNotHaveBoth = $analysis.Where({ !$_.HasBoth });
+     Write-Host "`nAnalysis: Overview of all static methods for [xconvert]" -f Green;
+     ($hasBoth + $doesNotHaveBoth) | Select-Object Name, @{l="To"; e={ $mark[[string]($xmethods -contains "To$($_.Name)")] }}, @{l="From"; e={ $mark[[string]($xmethods -contains "From$($_.Name)")] } } | Format-Table
+   }
    ```
 
 2. Add/improve a github workflow
