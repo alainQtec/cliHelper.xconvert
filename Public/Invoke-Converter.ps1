@@ -5,8 +5,8 @@ function Invoke-Converter {
   # .DESCRIPTION
   #  Creates a custom Converter object and Invokes methods on it.
   # .EXAMPLE
-  #  $enc_Pass = "HelloWorld" | xconvert ToBase32String, ToObfuscated, ToSecurestring
-  #  $txt_Pass = $enc_Pass | xconvert ToString, FromObfuscated, FromBase32String, ToInt32, Tostring
+  #  $enc_Pass = "HelloWorld" | xconvert ToBase32, ToObfuscated, ToSecurestring
+  #  $txt_Pass = $enc_Pass | xconvert ToString, FromObfuscated, FromBase32, ToInt32, Tostring
   #  $txt_Pass | Should -Be "HelloWorld"
   #  Thats chaining methods
   [CmdletBinding()]
