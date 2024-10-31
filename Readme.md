@@ -45,9 +45,9 @@ you have to remember ×͜×
 Then you can do stuff like:
 
 ```PowerShell
-"HelloWorld" | xconvert ToBase32String
+"HelloWorld" | xconvert ToBase32
 # same as
-(xconvert)::ToBase32String("HelloWorld")
+(xconvert)::ToBase32("HelloWorld")
 ```
 
 <p>
@@ -59,9 +59,9 @@ ie: since xconvert is an alias for the public funtion <a href="./Public/Invoke-C
 ex: do stuff like
 
 ```PowerShell
-$enc_Pass = "HelloWorld" | xconvert ToBase32String, ToObfuscated, ToSecurestring
+$enc_Pass = "HelloWorld" | xconvert ToBase32, ToObfuscated, ToSecurestring
 # then reverse it:
-$txt_Pass = $enc_Pass | xconvert ToString, FromObfuscated, FromBase32String, ToInt32, Tostring
+$txt_Pass = $enc_Pass | xconvert ToString, FromObfuscated, FromBase32, ToInt32, Tostring
 $txt_Pass | Should -Be "HelloWorld"
 # Metal 🔥 ⚡︎ 🤘
 ```
