@@ -93,11 +93,11 @@ class xconvert : System.ComponentModel.TypeConverter {
         break
       }
       'byte[]' {
-        [System.Convert]::ToBase64String([xconvert]::BytesFromObject($Object));
+        [System.Convert]::ToBase64String([xconvert]::ToBytes($Object));
         break
       }
       'guid' {
-        [Encoding]::UTF8.GetString([xconvert]::BytesFromHex($Object.ToString().Replace('-', '')))
+        [Encoding]::UTF8.GetString([xconvert]::ToBytes($Object.ToString().Replace('-', '')))
         # NOTE: This does not apply on real guids. This is just a way to reverse the ToGuid() method.
         break
       }
@@ -105,7 +105,7 @@ class xconvert : System.ComponentModel.TypeConverter {
         $NotNullProps = ('User', 'UID', 'Expiration');
         $Object | Get-Member -MemberType Properties | ForEach-Object { $Prop = $_.Name; if ($null -eq $Object.$Prop -and $Prop -in $NotNullProps) { throw [System.ArgumentNullException]::new($Prop) } };
         $CustomObject = [xconvert]::ToPSObject($Object);
-        [string][xconvert]::ToCompressed([System.Convert]::ToBase64String([xconvert]::BytesFromObject($CustomObject)));
+        [string][xconvert]::ToCompressed([System.Convert]::ToBase64String([xconvert]::ToBytes($CustomObject)));
         break
       }
       Default {
@@ -200,7 +200,18 @@ class xconvert : System.ComponentModel.TypeConverter {
         throw [System.ArgumentException]::new("Invalid Base.")
       }
     }
-    return [xconvert]::IntToString($value, $baseChars);
+    return [xconvert]::ToString($value, $baseChars);
+  }
+  static [string] ToString([Int]$value, [char[]]$baseChars) {
+    [int]$i = 32; [char[]]$buffer = [Char[]]::new($i);
+    [int]$targetBase = $baseChars.Length;
+    do {
+      $buffer[--$i] = $baseChars[$value % $targetBase];
+      $value = $value / $targetBase;
+    } while ($value -gt 0);
+    [char[]]$result = [Char[]]::new(32 - $i);
+    [Array]::Copy($buffer, $i, $result, 0, 32 - $i);
+    return [string]::new($result)
   }
   static [guid] ToGuid([string]$text) {
     # Creates a string that passes guid regex checks (ie: not a real guid)
@@ -541,14 +552,14 @@ class xconvert : System.ComponentModel.TypeConverter {
   static [string] ToProtected([string]$string) {
     $Scope = [ProtectionScope]::CurrentUser
     $Entropy = [Encoding]::UTF8.GetBytes([xget]::UniqueMachineId())[0..15];
-    return [xconvert]::Tostring([xconvert]::ToProtected([xconvert]::BytesFromObject($string), $Entropy, $Scope))
+    return [xconvert]::Tostring([xconvert]::ToProtected([xconvert]::ToBytes($string), $Entropy, $Scope))
   }
   static [string] ToProtected([string]$string, [ProtectionScope]$Scope) {
     $Entropy = [Encoding]::UTF8.GetBytes([xget]::UniqueMachineId())[0..15];
-    return [xconvert]::Tostring([xconvert]::ToProtected([xconvert]::BytesFromObject($string), $Entropy, $Scope))
+    return [xconvert]::Tostring([xconvert]::ToProtected([xconvert]::ToBytes($string), $Entropy, $Scope))
   }
   static [string] ToProtected([string]$string, [byte[]]$Entropy, [ProtectionScope]$Scope) {
-    return [xconvert]::Tostring([xconvert]::ToProtected([xconvert]::BytesFromObject($string), $Entropy, $Scope))
+    return [xconvert]::Tostring([xconvert]::ToProtected([xconvert]::ToBytes($string), $Entropy, $Scope))
   }
   static [byte[]] ToProtected([byte[]]$Bytes) {
     $Scope = [ProtectionScope]::CurrentUser
@@ -576,14 +587,14 @@ class xconvert : System.ComponentModel.TypeConverter {
   static [string] ToUnProtected([string]$string) {
     $Scope = [ProtectionScope]::CurrentUser
     $Entropy = [Encoding]::UTF8.GetBytes([xget]::UniqueMachineId())[0..15];
-    return [xconvert]::BytesToObject([xconvert]::ToUnProtected([xconvert]::BytesFromObject($string), $Entropy, $Scope))
+    return [xconvert]::FromBytes([xconvert]::ToUnProtected([xconvert]::ToBytes($string), $Entropy, $Scope))
   }
   static [string] ToUnProtected([string]$string, [ProtectionScope]$Scope) {
     $Entropy = [Encoding]::UTF8.GetBytes([xget]::UniqueMachineId())[0..15];
-    return [xconvert]::BytesToObject([xconvert]::ToUnProtected([xconvert]::BytesFromObject($string), $Entropy, $Scope))
+    return [xconvert]::FromBytes([xconvert]::ToUnProtected([xconvert]::ToBytes($string), $Entropy, $Scope))
   }
   static [string] ToUnProtected([string]$string, [byte[]]$Entropy, [ProtectionScope]$Scope) {
-    return [xconvert]::BytesToObject([xconvert]::ToUnProtected([xconvert]::BytesFromObject($string), $Entropy, $Scope))
+    return [xconvert]::FromBytes([xconvert]::ToUnProtected([xconvert]::ToBytes($string), $Entropy, $Scope))
   }
   static [byte[]] ToUnProtected([byte[]]$Bytes, [byte[]]$Entropy, [ProtectionScope]$Scope) {
     $decryptedData = $null;
@@ -737,35 +748,10 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $Ht
   }
-  static hidden [string] IntToString([Int]$value, [char[]]$baseChars) {
-    [int]$i = 32;
-    [char[]]$buffer = [Char[]]::new($i);
-    [int]$targetBase = $baseChars.Length;
-    do {
-      $buffer[--$i] = $baseChars[$value % $targetBase];
-      $value = $value / $targetBase;
-    } while ($value -gt 0);
-    [char[]]$result = [Char[]]::new(32 - $i);
-    [Array]::Copy($buffer, $i, $result, 0, 32 - $i);
-    return [string]::new($result)
-  }
   static [string] ToHexString([byte[]]$Bytes) {
     return [string][System.BitConverter]::ToString($bytes).replace('-', [string]::Empty).Tolower();
   }
-  static [byte[]] FromHexString([string]$HexString) {
-    $outputLength = $HexString.Length / 2;
-    $output = [byte[]]::new($outputLength);
-    $numeral = [char[]]::new(2);
-    for ($i = 0; $i -lt $outputLength; $i++) {
-      $HexString.CopyTo($i * 2, $numeral, 0, 2);
-      $output[$i] = [Convert]::ToByte([string]::new($numeral), 16);
-    }
-    return $output;
-  }
-  static [string] BytesToHex([byte[]]$Bytes) {
-    return [string][System.BitConverter]::ToString($bytes).replace('-', [string]::Empty).Tolower();
-  }
-  static [string] IntToHex([uint64[]]$Numbers, [int]$MinWidth, [string]$Prefix) {
+  static [string] ToHexString([uint64[]]$Numbers, [int]$MinWidth, [string]$Prefix) {
     [ValidateSet('#', '0x')][string]$Prefix = $Prefix
     [ValidateRange(1, 255)][int] $MinWidth = $MinWidth; $res = @()
     foreach ($Num in $Numbers) {
@@ -779,7 +765,7 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $res
   }
-  static [byte[]] BytesFromHex([string]$HexString) {
+  static [byte[]] FromHexString([string]$HexString) {
     $outputLength = $HexString.Length / 2;
     $output = [byte[]]::new($outputLength);
     $numeral = [char[]]::new(2);
@@ -789,35 +775,70 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $output;
   }
-  static [byte[]] BytesFromObject([object]$obj) {
-    return [xconvert]::BytesFromObject($obj, $false);
+  static [byte[]] ToBytes([string]$string) {
+    $array = switch ($true) {
+      $([xget]::IsValidBase64($string)) {
+        [convert]::FromBase64String($string);
+        break
+      }
+      $([xget]::IsValidHex($string)) {
+        $outputLength = $string.Length / 2;
+        $output = [byte[]]::new($outputLength);
+        $numeral = [char[]]::new(2);
+        for ($i = 0; $i -lt $outputLength; $i++) {
+          $string.CopyTo($i * 2, $numeral, 0, 2);
+          $output[$i] = [Convert]::ToByte([string]::new($numeral), 16);
+        }
+        $output;
+        break
+      }
+      Default {
+        [encoding]::UTF8.GetBytes($string);
+      }
+    }
+    return $array
   }
-  static [byte[]] BytesFromObject([object]$obj, [bool]$protect) {
-    if ($null -eq $obj) { return $null }; $bytes = $null;
-    if ($obj.GetType() -eq [string] -and $([regex]::IsMatch([string]$obj, '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$') -and ![string]::IsNullOrWhiteSpace([string]$obj) -and !$obj.Length % 4 -eq 0 -and !$obj.Contains(" ") -and !$obj.Contains(" ") -and !$obj.Contains("`t") -and !$obj.Contains("`n"))) {
-      $bytes = [convert]::FromBase64String($obj);
-    } elseif ($obj.GetType() -eq [byte[]]) {
-      $bytes = [byte[]]$obj
-    } else {
-      # Serialize the Object:
-      $bytes = [xconvert]::ToSerialized($obj)
+  static [byte[]] ToBytes([object]$obj) {
+    return [xconvert]::ToBytes($obj, $false)
+  }
+  static [byte[]] ToBytes([object]$obj, [bool]$protect) {
+    if ($null -eq $obj) { return $null }; $bytes = $null; $type = $obj.GetType();
+    $bytes = switch ($type.Name) {
+      'byte[]' {
+        [byte[]]$obj; break
+      }
+      'Stream' {
+        $ms = [MemoryStream]::new();
+        $obj.CopyTo($ms);
+        $arr = $ms.ToArray();
+        if ($null -ne $ms) { $ms.Flush(); $ms.Close(); $ms.Dispose() } else { Write-Warning "[x] MemoryStream was Not closed!" };
+        $arr;
+        break
+      }
+      'BitArray' {
+        [xconvert]::FromBitArrayString([xconvert]::ToBitArrayString($obj));
+        break
+      }
+      Default {
+        $str = $(try {
+            if ($type -ne [string]) {
+              [xconvert]::ToString($obj)
+            } else {
+              [string]$obj
+            }
+          } catch { $null }
+        );
+        if ([string]::IsNullOrEmpty($str)) {
+          [xconvert]::ToSerialized($obj)
+        } else {
+          [xconvert]::ToBytes($str)
+        }
+      }
     }
     if ($protect) {
-      # Protecteddata: https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.protecteddata.unprotect?
       $bytes = [byte[]][xconvert]::ToProtected($bytes);
     }
     return $bytes
-  }
-  static [Object[]] BytesToObject([byte[]]$Bytes) {
-    if ($null -eq $Bytes) { return $null }
-    # Deserialize the byte array
-    return [xconvert]::ToDeserialized($Bytes)
-  }
-  static [Object[]] BytesToObject([byte[]]$Bytes, [bool]$Unprotect) {
-    if ($Unprotect) {
-      $Bytes = [byte[]][xconvert]::ToUnProtected($Bytes)
-    }
-    return [xconvert]::BytesToObject($Bytes);
   }
   static [byte[]] ToSerialized($Obj) {
     return [xconvert]::ToSerialized($Obj, $false)
@@ -852,7 +873,9 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $bytes
   }
-  static [Object[]] ToDeserialized([byte[]]$data) {
+  static [Object[]] FromBytes([byte[]]$data) {
+    # Deserialize the byte array
+    if ($null -eq $data) { return $null }
     $bf = [Formatters.Binary.BinaryFormatter]::new()
     $ms = [MemoryStream]::new(); $Obj = $null
     $ms.Write($data, 0, $data.Length);
@@ -868,6 +891,13 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     # Output the deserialized object
     return $Obj
+  }
+  static [Object[]] FromBytes([byte[]]$data, [bool]$Unprotect) {
+    if ($null -eq $data) { return $null }
+    if ($Unprotect) {
+      return [xconvert]::FromBytes([byte[]][xconvert]::ToUnProtected($data))
+    }
+    return [xconvert]::FromBytes($data);
   }
   static [BitArray] ToBitArray([string]$binary) {
     # .EXAMPLE
@@ -918,9 +948,6 @@ class xconvert : System.ComponentModel.TypeConverter {
       [void]$list.Add([Convert]::ToByte($binStr, 2));
     }
     return $list.ToArray();
-  }
-  static [byte[]] BytesFromBinary([BitArray]$binary) {
-    return [xconvert]::FromBitArrayString([xconvert]::ToBitArrayString($binary))
   }
   static [Object[]] ToOrdered($InputObject) {
     $obj = $InputObject
@@ -999,10 +1026,10 @@ class xconvert : System.ComponentModel.TypeConverter {
     $ansi = '[38;2;{0};{1};{2}m' -f $code.R, $code.G, $code.B
     return $ansi
   }
-  static [datetime] ToUTC([datetime]$Date) {
-    return [xconvert]::ToUTC(@($Date))[0]
+  static [datetime] ToUtcDate([datetime]$Date) {
+    return [xconvert]::ToUtcDate(@($Date))[0]
   }
-  static [datetime[]] ToUTC([datetime[]]$Date) {
+  static [datetime[]] ToUtcDate([datetime[]]$Date) {
     $strCurrentTimeZone = (Get-CimInstance -ClassName win32_timezone).StandardName
     Write-Verbose "Your local timezone is '$((Get-CimInstance -ClassName win32_timezone).Description)'"
     $TZ = [TimeZoneInfo]::FindSystemTimeZoneById($strCurrentTimeZone); $result = @()
@@ -1013,10 +1040,10 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $result
   }
-  static [datetime] FromUTC([datetime]$Date) {
-    return [xconvert]::FromUTC(@($Date))[0]
+  static [datetime] FromUtcDate([datetime]$Date) {
+    return [xconvert]::FromUtcDate(@($Date))[0]
   }
-  static [datetime[]] FromUTC([datetime[]]$Date) {
+  static [datetime[]] FromUtcDate([datetime[]]$Date) {
     # [xconvert]::FromUT("1/25/2018 1:34:31 PM")
     $strCurrentTimeZone = (Get-CimInstance -ClassName win32_timezone).StandardName
     Write-Verbose "Your local timezone is '$((Get-CimInstance -ClassName win32_timezone).Description)'"
@@ -1056,7 +1083,7 @@ class xconvert : System.ComponentModel.TypeConverter {
           break
         }
         'Unix' {
-          [xconvert]::FromUTC($BeginUnixEpoch.AddSeconds($DS))
+          [xconvert]::FromUtcDate($BeginUnixEpoch.AddSeconds($DS))
           break
         }
         'FileTime' {
@@ -1119,7 +1146,7 @@ class xconvert : System.ComponentModel.TypeConverter {
         }
       }
       if ($ReturnVal -ne 'Invalid' -and $UTC) {
-        $ReturnVal = [xconvert]::ToUTC($ReturnVal)
+        $ReturnVal = [xconvert]::ToUtcDate($ReturnVal)
       }
       $result += $ReturnVal
     }
@@ -1172,13 +1199,6 @@ class xconvert : System.ComponentModel.TypeConverter {
   }
   [System.TimeSpan[]] ToTimeSpan([string[]]$timespanStr) {
     return ($timespanStr | Select-Object *, @{name = 'Hour'; Expression = { $_.Split(":")[0] } }, @{name = 'Minute'; Expression = { $_.Split(":")[1] } }, @{name = 'Second'; Expression = { $_.Split(":")[2] } } | Select-Object @{n = 'timeSpan'; e = { New-TimeSpan -Hours $_.Hour -Minutes $_.Minute -Seconds $_.Second } }).timeSpan
-  }
-  static [byte[]] StreamToByteArray([Stream]$Stream) {
-    $ms = [MemoryStream]::new();
-    $Stream.CopyTo($ms);
-    $arr = $ms.ToArray();
-    if ($null -ne $ms) { $ms.Flush(); $ms.Close(); $ms.Dispose() } else { Write-Warning "[x] MemoryStream was Not closed!" };
-    return $arr;
   }
   static [string] ToReverse([string]$text) {
     [char[]]$array = $text.ToCharArray(); [array]::Reverse($array);
