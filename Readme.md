@@ -1,4 +1,4 @@
-# [![✖convert](/docs/img/favicons/favicon-150x150.png)](https://alainQtec.dev/clihelper-modules/xconvert)
+# [![✖convert](https://github.com/user-attachments/assets/777c32d2-d5bc-4298-9ac9-38fc3e9c8ad9)](https://alainQtec.dev/clihelper-modules/xconvert)
 
 <p><b><a href="https://powershellgallery.com/packages/cliHelper.xconvert">✖convert</a></b> - version <b>0.1.3</b></p>
 
@@ -34,11 +34,11 @@ you have to remember ×͜×
 
   gives this output
 
-  [![from tab](/docs/img/from.png)](https://alainQtec.dev/clihelper-modules/xconvert)
+  [![from tab](https://github.com/user-attachments/assets/6a2ed842-ee1e-4b6f-8309-c483e8b0eade)](https://alainQtec.dev/clihelper-modules/xconvert)
 
   `or` xconvert To `Tab`
 
-  [![to tab](/docs/img/to.png)](https://alainQtec.dev/clihelper-modules/xconvert)
+  [![to tab](https://github.com/user-attachments/assets/b7168891-deb2-42f9-8c44-af2f17bc174e)](https://alainQtec.dev/clihelper-modules/xconvert)
 
 </details>
 
