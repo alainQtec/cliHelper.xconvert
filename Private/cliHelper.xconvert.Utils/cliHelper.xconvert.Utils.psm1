@@ -811,6 +811,13 @@ class xget {
       }
     } return $true
   }
+  static [bool] IsValidBase64([string]$string) {
+    return $(
+      [regex]::IsMatch([string]$string, '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$') -and
+      ![string]::IsNullOrWhiteSpace([string]$string) -and !$string.Length % 4 -eq 0 -and !$string.Contains(" ") -and
+      !$string.Contains(" ") -and !$string.Contains("`t") -and !$string.Contains("`n")
+    )
+  }
   static [void] ValidatePolybius([string]$Text, [string]$Key, [string]$Action) {
     if ($Text -notmatch "^[a-z ]*$" -and ($Action -ne 'Decrypt')) {
       throw('Text must only have alphabetical characters');
