@@ -4,7 +4,8 @@ Usage docs go here...
 
 ## WORK_IN_PROGRESS
 
-- [x] Added main class (90%)
+- [x] Added main class (90%) 🎉. see progress by running
+      [`Get-Help xconvert`](https://github.com/alainQtec/cliHelper.XConvert/blob/main/.github/CONTRIBUTING.md)
 - [x] Added Private /utility classes
 - [x] Add Public function(s)
 
