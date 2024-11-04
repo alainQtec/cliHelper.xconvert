@@ -43,7 +43,7 @@ class Base85 : EncodingBase {
   static [string] Encode([byte[]]$Bytes, [bool]$Format) {
     # Using Format means we'll add "<~" Prefix and "~>" Suffix marks to output text
     [System.IO.Stream]$InputStream = New-Object -TypeName System.IO.MemoryStream(, $Bytes)
-    [System.Object]$Timer = [System.Diagnostics.Stopwatch]::StartNew()
+    # [System.Object]$Timer = [System.Diagnostics.Stopwatch]::StartNew()
     [System.Object]$BinaryReader = New-Object -TypeName System.IO.BinaryReader($InputStream)
     [System.Object]$Ascii85Output = New-Object -TypeName System.Text.StringBuilder
     if ($Format) {
@@ -52,7 +52,7 @@ class Base85 : EncodingBase {
     }
     $EncodedString = [string]::Empty
     Try {
-      Write-Verbose "[base85] Encoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
+      # Write-Debug "[base85] Encoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
       While ([System.Byte[]]$BytesRead = $BinaryReader.ReadBytes(4)) {
         [System.UInt16]$ByteLength = $BytesRead.Length
         if ($ByteLength -lt 4) {
@@ -106,9 +106,8 @@ class Base85 : EncodingBase {
       $BinaryReader.Dispose()
       $InputStream.Close()
       $InputStream.Dispose()
-      $Timer.Stop()
-      [String]$TimeLapse = "[base85] Encoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
-      Write-Verbose $TimeLapse
+      # $Timer.Stop()
+      # Write-Debug "[base85] Encoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
     }
     return $EncodedString
   }
@@ -124,9 +123,9 @@ class Base85 : EncodingBase {
     [System.Object]$BinaryReader = New-Object -TypeName System.IO.BinaryReader($InputStream)
     [System.Object]$OutputStream = New-Object -TypeName System.IO.MemoryStream
     [System.Object]$BinaryWriter = New-Object -TypeName System.IO.BinaryWriter($OutputStream)
-    [System.Object]$Timer = [System.Diagnostics.Stopwatch]::StartNew()
+    # [System.Object]$Timer = [System.Diagnostics.Stopwatch]::StartNew()
     Try {
-      Write-Verbose "[base85] Decoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
+      # Write-Verbose "[base85] Decoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
       While ([System.Byte[]]$BytesRead = $BinaryReader.ReadBytes(5)) {
         [System.UInt16]$ByteLength = $BytesRead.Length
         if ($ByteLength -lt 5) {
@@ -172,9 +171,8 @@ class Base85 : EncodingBase {
       $InputStream.Dispose()
       $OutputStream.Close()
       $OutputStream.Dispose()
-      $Timer.Stop()
-      [String]$TimeLapse = "[base85] Decoding completed after $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
-      Write-Verbose $TimeLapse
+      # $Timer.Stop()
+      # Write-Verbose "[base85] Decoding completed after $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
     }
     return $decoded
   }
@@ -234,7 +232,7 @@ class Base32 : EncodingBase {
     # $text = [String]::Join([string]::Empty, [Base32]::ToString([int[]][Base32]::Decode($b32)))
     $BinaryReader = [BinaryReader]::new($Stream); $B32CHARSET = [Base32]::charset
     $Base32Output = [StringBuilder]::new(); $result = [string]::Empty
-    # Write-Verbose "[Base32] Encoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
+    # Write-Debug "[Base32] Encoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
     Try {
       While ([byte[]]$BytesRead = $BinaryReader.ReadBytes(5)) {
         [System.Boolean]$AtEnd = ($BinaryReader.BaseStream.Length -eq $BinaryReader.BaseStream.Position)
@@ -273,7 +271,7 @@ class Base32 : EncodingBase {
       $Stream.Close()
       $Stream.Dispose()
     }
-    # Write-Verbose "[Base32] Encoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
+    # Write-Debug "[Base32] Encoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
     return $result
   }
   static [byte[]] Decode([string]$string) {
@@ -455,8 +453,8 @@ class UnixtoUnix {
     return [UnixtoUnix]::Encode([System.Text.Encoding]::ASCII.GetBytes($text))
   }
   static [string] Encode([byte[]]$ba) {
-    $encoded = $null; $Timer = [System.Diagnostics.Stopwatch]::StartNew();
-    Write-Verbose "[UnixtoUnix] Encoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
+    $encoded = $null; # $Timer = [System.Diagnostics.Stopwatch]::StartNew();
+    # Write-Debug "[UnixtoUnix] Encoding started at $([Datetime]::Now.Add($timer.Elapsed).ToString()) ..."
     $lineLength = 45  # Specify the desired line length
 
     for ($i = 0; $i -lt $ba.Length; $i += 3) {
@@ -474,7 +472,7 @@ class UnixtoUnix {
       "$lineLengthChar$_"
     } -join "`r`n"
 
-    Write-Verbose "[UnixtoUnix] Encoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
+    # Write-Verbose "[UnixtoUnix] Encoding completed in $($Timer.Elapsed.Hours) hours, $($Timer.Elapsed.Minutes) minutes, $($Timer.Elapsed.Seconds) seconds, $($Timer.Elapsed.Milliseconds) milliseconds"
     return $encoded
   }
   static [byte[]] Decode([string]$text) {
