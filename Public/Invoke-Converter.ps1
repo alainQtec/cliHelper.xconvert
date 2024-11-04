@@ -5,10 +5,13 @@ function Invoke-Converter {
   # .DESCRIPTION
   #  Creates a custom Converter object and Invokes methods on it.
   # .EXAMPLE
-  #  $enc_Pass = "HelloWorld" | xconvert ToBase32, ToObfuscated, ToSecurestring
-  #  $txt_Pass = $enc_Pass | xconvert ToString, FromObfuscated, FromBase32, ToInt32, Tostring
-  #  $txt_Pass | Should -Be "HelloWorld"
+  #  ❯ $enc_Pass = "HelloWorld" | xconvert ToBase32, ToObfuscated, ToSecurestring
+  #  ❯ $txt_Pass = $enc_Pass | xconvert ToString, FromObfuscated, FromBase32, ToInt32, Tostring
+  #  ❯ $txt_Pass | Should -Be "HelloWorld"
   #  Thats chaining methods
+  # .EXAMPLE
+  #  ❯ $txt = "awesome!" | xconvert ToBase32, ToObfuscated | xconvert FromObfuscated, ToUTF8str, FromBase32, ToUTF8str
+  #  ❯ $txt | Should -Be "awesome!"
   [CmdletBinding()]
   [Alias('xconvert')]
   [OutputType({ [xconvert]::ReturnTypes })]
