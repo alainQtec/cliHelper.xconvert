@@ -37,16 +37,14 @@ class xconvert : System.ComponentModel.TypeConverter {
   static hidden [MethodInfo[]] $Methods = [xconvert].GetMethods().Where({ $_.IsStatic -and !$_.IsHideBySig })
   static hidden [Type[]] $ReturnTypes = ([xconvert]::Methods.ReturnType | Sort-Object -Unique Name)
   xconvert() {}
-  static [string] ToString([byte[]]$Bytes) {
-    # We could do: [xconvert]::Tostring([int[]]$bytes); but lots of data is lost when decoding back ...
-    return [string][System.Convert]::ToBase64String($Bytes);
-  }
   static [string] Tostring($Object) {
     if ($null -eq $Object) { return [string]::Empty };
     [string]$ObjtN = $Object.GetType().Name
-    if ($ObjtN -notin ('BitArray', 'byte[]', 'int[]', 'SecureString', 'Hashtable', 'OrderedDictionary', 'AXNodeConfiguration', 'PSBoundParametersDictionary')) {
+    $s = @('Object', 'bool', 'char', 'sbyte', 'byte', 'short', 'ushort', 'int', 'uint', 'long', 'ulong', 'float', 'double', 'decimal', 'datetime', 'string')
+    if ($ObjtN -notin ($s + ('BitArray', 'byte[]', 'char[]', 'int[]', 'SecureString', 'guid', 'k3y', 'Hashtable', 'OrderedDictionary', 'AXNodeConfiguration', 'PSBoundParametersDictionary'))) {
       throw [System.InvalidOperationException]::new("Object type not upported")
     }
+    if ($ObjtN -in $s) { return [convert]::ToString($Object) }
     $r = switch ($ObjtN) {
       'SecureString' {
         [string]$Pstr = [string]::Empty;
@@ -63,6 +61,14 @@ class xconvert : System.ComponentModel.TypeConverter {
           }
         }
         $Pstr; break
+      }
+      'byte[]' {
+        [System.Convert]::ToBase64String([xconvert]::ToBytes($Object));
+        break
+      }
+      'char[]' {
+        [string]::Join([string]::Empty, [string[]][xconvert]::ToChars([byte[]][int[]]$Object));
+        break
       }
       'BitArray' {
         $b = [BitArray]$Object
@@ -87,10 +93,6 @@ class xconvert : System.ComponentModel.TypeConverter {
           $b = $ba_tempBitArray;
         }
         $finalString;
-        break
-      }
-      'byte[]' {
-        [System.Convert]::ToBase64String([xconvert]::ToBytes($Object));
         break
       }
       'guid' {
@@ -176,10 +178,6 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $r
   }
-  static [string] Tostring([int[]]$CharCodes) {
-    $s = @(); foreach ($n in $CharCodes) { $s += [string][char]$n };
-    return [string]::Join([string]::Empty, $s)
-  }
   static [string] ToString([int[]]$CharCodes, [string]$separator) {
     return [string]::Join($separator, [xconvert]::ToString($CharCodes));
   }
@@ -210,6 +208,27 @@ class xconvert : System.ComponentModel.TypeConverter {
     [Array]::Copy($buffer, $i, $result, 0, 32 - $i);
     return [string]::new($result)
   }
+  static [string] ToASCIIstr([byte[]]$bytes) { return [Encoding]::ASCII.GetString($bytes) }
+  static [byte[]] FromASCIIstr([string]$s) { return [Encoding]::ASCII.GetBytes($s) }
+
+  static [string] ToUTF7str([byte[]]$bytes) { return [Encoding]::UTF7.GetString($bytes) }
+  static [byte[]] FromUTF7str([string]$s) { return [Encoding]::UTF7.GetBytes($s) }
+
+  static [string] ToUTF8str([byte[]]$bytes) { return [Encoding]::UTF8.GetString($bytes) }
+  static [byte[]] FromUTF8str([string]$s) { return [Encoding]::UTF8.GetBytes($s) }
+
+  static [string] ToUTF32str([byte[]]$bytes) { return [Encoding]::UTF32.GetString($bytes) }
+  static [byte[]] FromUTF32str([string]$s) { return [Encoding]::UTF32.GetBytes($s) }
+
+  static [string] ToLatin1str([byte[]]$bytes) { return [Encoding]::Latin1.GetString($bytes) }
+  static [byte[]] FromLatin1str([string]$s) { return [Encoding]::Latin1.GetBytes($s) }
+
+  static [string] ToUnicodestr([byte[]]$bytes) { return [Encoding]::Unicode.GetString($bytes) }
+  static [byte[]] FromUnicodestr([string]$s) { return [Encoding]::Unicode.GetBytes($s) }
+
+  static [string] ToBUnicodestr([byte[]]$bytes) { return [Encoding]::BigEndianUnicode.GetString($bytes) }
+  static [byte[]] FromBUnicodestr([string]$s) { return [Encoding]::BigEndianUnicode.GetBytes($s) }
+
   static [guid] ToGuid([string]$text) {
     # Creates a string that passes guid regex checks (ie: not a real guid)
     if ($text.Trim().Length -ne 16) {
@@ -274,18 +293,16 @@ class xconvert : System.ComponentModel.TypeConverter {
     return $SecureString
   }
   static [int[]] ToInt32([byte[]]$Bytes) {
-    return [int[]]$Bytes
+    return [xconvert]::ToChars($Bytes)
   }
   static [int[]] ToInt32([string[]]$string) {
-    [bool]$encoderShouldEmitUTF8Identifier = $false; $Codes = @()
-    $Encodr = [UTF8Encoding]::new($encoderShouldEmitUTF8Identifier)
-    for ($i = 0; $i -lt $string.Count; $i++) {
-      $Codes += [int[]]$($Encodr.GetBytes($string[$i]))
-    }
-    return $Codes;
+    return [xconvert]::ToChars([Encoding]::Default.GetBytes($string))
   }
   static [string[]] FromInt32([int[]]$Codes) {
     return [string[]]$Codes
+  }
+  static [char[]] ToChars([byte[]]$Bytes) {
+    return [Encoding]::Default.GetChars($Bytes)
   }
   static [bool] ToBoolean([string]$Text) {
     $Text = switch -Wildcard ($Text) {
@@ -482,10 +499,10 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $PSObj
   }
-  static [System.Object] FromPSObject([PSCustomObject]$PSObject) {
+  static [object] FromPSObject([PSCustomObject]$PSObject) {
     return [xconvert]::FromPSObject($PSObject, $PSObject.PSObject.TypeNames[0])
   }
-  static [System.Object] FromPSObject([PSCustomObject]$PSObject, [string]$typeName) {
+  static [object] FromPSObject([PSCustomObject]$PSObject, [string]$typeName) {
     # TODO: fix. /!\ not working as expected /!\
     $Type = [Type]::GetType($typeName, $false)
     if ($Type) {
@@ -525,32 +542,38 @@ class xconvert : System.ComponentModel.TypeConverter {
   static [byte[]] FromBase85([string]$text) {
     return [Base85]::Decode($text)
   }
+  static [byte[]] FromBase85([byte[]]$bytes) {
+    return [Base85]::Decode([xconvert]::ToUTF8str($bytes))
+  }
   static [string] ToBase32([byte[]]$bytes) {
     if ([xget]::IsValidHex($bytes)) {
       return [System.BitConverter]::ToString($bytes).Replace("-", "").ToLower()
     }
     return [Base32]::Encode($bytes)
   }
-  static [string] ToBase32([string]$String) {
-    if ([xget]::IsValidHex($String)) {
-      return [Encoding]::UTF8.GetString(([byte[]] -split ($String -replace '..', '0x$& ')))
-    }
-    return [Base32]::Encode($String)
+  static [string] ToBase32([string]$s) {
+    return [Base32]::Encode([xconvert]::ToBytes($s))
   }
   static [string] ToBase32([byte[]]$bytes, [bool]$Formatt) {
     return [Base32]::Encode($bytes, $Formatt)
   }
-  static [string] ToBase32([string]$String, [bool]$Formatt) {
-    return [Base32]::Encode($String, $Formatt)
+  static [string] ToBase32([string]$s, [bool]$Formatt) {
+    return [Base32]::Encode($s, $Formatt)
   }
   static [string] ToBase32([Stream]$Stream, [bool]$Formatt) {
     return [Base32]::Encode($Stream, $Formatt)
   }
+  static [string] ToBase58([string]$s) {
+    return [Base58]::Encode([xconvert]::ToBytes($s))
+  }
   static [string] ToBase58([byte[]]$bytes) {
     return [Base58]::Encode($bytes)
   }
+  static [string] ToBase85([string]$s) {
+    return [Base85]::Encode([xconvert]::ToBytes($s))
+  }
   static [string] ToBase85([byte[]]$bytes) {
-    return [Base85]::GetString($bytes)
+    return [Base85]::Encode($bytes)
   }
   static [string] ToProtected([string]$string) {
     $Scope = [ProtectionScope]::CurrentUser
@@ -699,7 +722,7 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return [xconvert]::ToHashTable($Properties, 0)
   }
-  static [Hashtable] ToHashTable  ([PSPropertyInfo[]]$Properties, [int]$CurrentDepth) {
+  static [Hashtable] ToHashTable ([PSPropertyInfo[]]$Properties, [int]$CurrentDepth) {
     $DepthThreshold = 32; $CurrentDepth++
     if ($CurrentDepth -ge $DepthThreshold) {
       Write-Error -Message "Converting to Hashtable reached Depth Threshold of 32 on $($Properties.Name -join ',')" -ErrorAction Stop
@@ -761,6 +784,9 @@ class xconvert : System.ComponentModel.TypeConverter {
     }
     return $output;
   }
+  static [string] ToBase64str([byte[]]$bytes) { return [Convert]::ToBase64String($bytes) }
+  static [byte[]] FromBase64str([string]$s) { return [Convert]::FromBase64String($s) }
+
   static [byte[]] ToBytes([string]$string) {
     $array = switch ($true) {
       $([xget]::IsValidBase64($string)) {
@@ -779,7 +805,7 @@ class xconvert : System.ComponentModel.TypeConverter {
         break
       }
       Default {
-        [encoding]::UTF8.GetBytes($string);
+        [encoding]::Default.GetBytes($string);
       }
     }
     return $array
@@ -1296,6 +1322,8 @@ $typestoExport = @(
   [EncodKit],
   [xconvert],
   [Base85],
+  [Base58],
+  [Base32],
   [xget]
 )
 $TypeAcceleratorsClass = [psobject].Assembly.GetType('System.Management.Automation.TypeAccelerators')
