@@ -61,7 +61,7 @@ ex: do stuff like
 ```PowerShell
 $enc_Pass = "HelloWorld" | xconvert ToBase32, ToObfuscated, ToSecurestring
 # then reverse it:
-$txt_Pass = $enc_Pass | xconvert ToString, FromObfuscated, FromBase32, ToInt32, Tostring
+$txt_Pass = $enc_Pass | xconvert ToString, FromObfuscated, FromBase32, ToUTF8str
 $txt_Pass | Should -Be "HelloWorld"
 # Metal 🔥 ⚡︎ 🤘
 ```
