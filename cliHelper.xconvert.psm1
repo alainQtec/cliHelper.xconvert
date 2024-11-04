@@ -536,8 +536,14 @@ class xconvert : System.ComponentModel.TypeConverter {
   static [byte[]] FromBase32([string]$string) {
     return [Base32]::Decode($string)
   }
+  static [byte[]] FromBase32([byte[]]$bytes) {
+    return [Base32]::Decode([xconvert]::ToUTF8str($bytes))
+  }
   static [byte[]] FromBase58([string]$text) {
     return [Base58]::Decode($text)
+  }
+  static [byte[]] FromBase58([byte[]]$bytes) {
+    return [Base58]::Decode([xconvert]::ToUTF8str($bytes))
   }
   static [byte[]] FromBase85([string]$text) {
     return [Base85]::Decode($text)
