@@ -498,6 +498,69 @@ class UnixtoUnix {
   }
 }
 
+class Morse {
+  # .SYNOPSIS
+  #   Morse code encoding/decoding
+  # .LINK
+  #   https://en.wikipedia.org/wiki/Morse_code
+  static $Map = @{
+    'A' = '.-'; 'B' = '-...'; 'C' = '-.-.'; 'D' = '-..'; 'E' = '.';
+    'F' = '..-.'; 'G' = '--.'; 'H' = '....'; 'I' = '..'; 'J' = '.---';
+    'K' = '-.-'; 'L' = '.-..'; 'M' = '--'; 'N' = '-.'; 'O' = '---';
+    'P' = '.--.'; 'Q' = '--.-'; 'R' = '.-.'; 'S' = '...'; 'T' = '-';
+    'U' = '..-'; 'V' = '...-'; 'W' = '.--'; 'X' = '-..-'; 'Y' = '-.--';
+    'Z' = '--..'; '1' = '.----'; '2' = '..---'; '3' = '...--'; '4' = '....-';
+    '5' = '.....'; '6' = '-....'; '7' = '--...'; '8' = '---..'; '9' = '----.';
+    '0' = '-----'
+  }
+  static [string] Encode([string]$text) {
+    if ([string]::IsNullOrEmpty($text)) { return '' }
+    # Clean up input - replace underscore with dash for consistency
+    $text = $text.Replace('_', '-')
+
+    # Split into words (multiple spaces between words)
+    $words = $text -split " " | Where-Object { ![String]::IsNullOrEmpty($_.Trim()) }
+
+    # Process each word
+    $result = foreach ($word in $words) {
+      # Split word into individual characters (single space between letters)
+      $letters = $word -split '' | Where-Object { ![String]::IsNullOrEmpty($_.Trim()) }
+      $($letters | ForEach-Object {
+          if ($morseMap.ContainsKey($_)) {
+            [Morse]::Map[$_]
+          } else { '' }
+        }
+      ) -join ''
+    }
+    return ($result -join ' ')
+  }
+  static [string] Decode([string]$text) {
+    if ([string]::IsNullOrEmpty($text)) { return '' }
+    return ''
+  }
+}
+
+class ROT13 {
+  # .SYNOPSIS
+  #   rotate by 13 places
+  # .LINK
+  #   https://en.wikipedia.org/wiki/ROT13
+  static [string] Encode([string]$text) {
+    $result = ''; $text.ToCharArray() | ForEach-Object {
+      if ((([int] $_ -ge 97) -and ([int] $_ -le 109)) -or (([int] $_ -ge 65) -and ([int] $_ -le 77))) {
+        $result += [char] ([int] $_ + 13);
+      } elseif ((([int] $_ -ge 110) -and ([int] $_ -le 122)) -or (([int] $_ -ge 78) -and ([int] $_ -le 90))) {
+        $result += [char] ([int] $_ - 13);
+      } else {
+        $result += $_
+      }
+    }
+    return $result
+  }
+  static [string] Decode([string]$text) {
+    return [ROT13]::Encode($text)
+  }
+}
 
 # .SYNOPSIS
 #   Fast encoder/decoder toolkit for power-users.
