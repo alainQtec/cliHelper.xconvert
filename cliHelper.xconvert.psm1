@@ -424,6 +424,12 @@ class xconvert : System.ComponentModel.TypeConverter {
     $by = [byte[]][string]::Concat($(($string.ToCharArray() | ForEach-Object { if ($_ -in $az) { [string][char]32 } else { [string]$_ } }) | ForEach-Object { $_ })).Trim().split([string][char]32);
     return $by
   }
+  static [string] ToROT13([string]$Text) {
+    return [ROT13]::Encode($Text)
+  }
+  static [string] FromROT13([string]$Text) {
+    return [ROT13]::Decode($Text)
+  }
   static [PSCustomObject[]] ToPSObject([xml]$XML) {
     $Out = @(); foreach ($Object in @($XML.Objects.Object)) {
       $PSObject = [PSCustomObject]::new()
