@@ -1377,4 +1377,4 @@ foreach ($file in $($Public, $Private)) {
   }
 }
 
-Export-ModuleMember -Function $Public.BaseName -Alias * -Verbose
+Export-ModuleMember -Function $Public.BaseName -Alias *
