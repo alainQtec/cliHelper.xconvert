@@ -1338,7 +1338,7 @@ $typestoExport = @(
   [Base32],
   [xget]
 )
-$TypeAcceleratorsClass = [psobject].Assembly.GetType('System.Management.Automation.TypeAccelerators')
+$TypeAcceleratorsClass = [PsObject].Assembly.GetType('System.Management.Automation.TypeAccelerators')
 foreach ($Type in $typestoExport) {
   if ($Type.FullName -in $TypeAcceleratorsClass::Get.Keys) {
     $Message = @(
@@ -1346,12 +1346,12 @@ foreach ($Type in $typestoExport) {
       'Accelerator already exists.'
     ) -join ' - '
 
-    throw [ErrorRecord]::new(
+    [System.Management.Automation.ErrorRecord]::new(
       [System.InvalidOperationException]::new($Message),
       'TypeAcceleratorAlreadyExists',
-      [ErrorCategory]::InvalidOperation,
+      [System.Management.Automation.ErrorCategory]::InvalidOperation,
       $Type.FullName
-    )
+    ) | Write-Warning
   }
 }
 # Add type accelerators for every exportable type.
@@ -1365,9 +1365,12 @@ $MyInvocation.MyCommand.ScriptBlock.Module.OnRemove = {
   }
 }.GetNewClosure();
 
-$Private = @(); # $Private = Get-ChildItem ([IO.Path]::Combine($PSScriptRoot, 'Private')) -Filter "*.ps1" -ErrorAction SilentlyContinue
-$Public = Get-ChildItem ([IO.Path]::Combine($PSScriptRoot, 'Public')) -Filter "*.ps1" -ErrorAction SilentlyContinue
-foreach ($file in $($Public, $Private)) {
+$scripts = @();
+$Public = Get-ChildItem "$PSScriptRoot/Public" -Filter "*.ps1" -Recurse -ErrorAction SilentlyContinue
+$scripts += Get-ChildItem "$PSScriptRoot/Private" -Filter "*.ps1" -Recurse -ErrorAction SilentlyContinue
+$scripts += $Public
+
+foreach ($file in $scripts) {
   Try {
     if ([string]::IsNullOrWhiteSpace($file.fullname)) { continue }
     . "$($file.fullname)"
@@ -1377,4 +1380,9 @@ foreach ($file in $($Public, $Private)) {
   }
 }
 
-Export-ModuleMember -Function $Public.BaseName -Alias *
+$Param = @{
+  Function = $Public.BaseName
+  Cmdlet   = '*'
+  Alias    = '*'
+}
+Export-ModuleMember @Param -Verbose:$false
