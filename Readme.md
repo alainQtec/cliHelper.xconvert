@@ -1,6 +1,6 @@
 # [![✖convert](https://github.com/user-attachments/assets/777c32d2-d5bc-4298-9ac9-38fc3e9c8ad9)](https://alainQtec.dev/clihelper-modules/xconvert)
 
-<p><b><a href="https://powershellgallery.com/packages/cliHelper.xconvert">✖convert</a></b> - version <b>0.1.3</b></p>
+<p><b><a href="https://powershellgallery.com/packages/cliHelper.xconvert">✖convert</a></b> - version <b>0.1.5</b></p>
 
 An all-in-one module to convert files and object types.
 

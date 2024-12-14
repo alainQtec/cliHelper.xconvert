@@ -1,22 +1,24 @@
 ﻿using namespace System
 using namespace System.IO
 using namespace System.Management.Automation
-<#
-.SYNOPSIS
-    cliHelper.xconvert buildScript
-.DESCRIPTION
-    A custom Psake buildScript for the module cliHelper.xconvert.
-.LINK
-    https://github.com/alainQtec/cliHelper.xconvert/blob/main/build.ps1
-.EXAMPLE
-    Running ./build.ps1 will only "Init, Compile & Import" the module; That's it, no tests.
-    To run tests Use:
-    ./build.ps1 -Task Test
-    This Will build the module, Import it and run tests using the ./Test-Module.ps1 script.
-.EXAMPLE
-    ./build.ps1 -Task deploy
-    Will build the module, test it and deploy it to PsGallery
-#>
+#.SYNOPSIS
+#   cliHelper.xconvert buildScript
+#.DESCRIPTION
+#   A custom Psake buildScript for the module cliHelper.xconvert.
+#.EXAMPLE
+#   Running ./build.ps1 will only "Init, Compile & Import" the module; That's it, no tests.
+#   To run tests Use:
+#   ./build.ps1 -Task Test
+#   This Will build the module, Import it and run tests using the ./Test-Module.ps1 script.
+#.EXAMPLE
+#   ./build.ps1 -Task deploy
+#   Will build the module, test it and deploy it to PsGallery
+#.LINK
+#   https://github.com/alainQtec/cliHelper.xconvert/blob/main/build.ps1
+#.NOTES
+#   Author   : Alain Herve
+#   Copyright: Copyright © 2024 Alain Herve. All rights reserved.
+#   License  : MIT
 [cmdletbinding(DefaultParameterSetName = 'task')]
 param(
   [parameter(Mandatory = $false, Position = 0, ParameterSetName = 'task')]

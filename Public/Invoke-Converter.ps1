@@ -1,17 +1,19 @@
 using namespace System.Management.Automation
 function Invoke-Converter {
-  # .SYNOPSIS
+  #.SYNOPSIS
   #  Convert objects
-  # .DESCRIPTION
+  #.DESCRIPTION
   #  Creates a custom Converter object and Invokes methods on it.
-  # .EXAMPLE
-  #  ❯ $enc_Pass = "HelloWorld" | xconvert ToBase32, ToObfuscated, ToSecurestring
-  #  ❯ $txt_Pass = $enc_Pass | xconvert ToString, FromObfuscated, FromBase32, ToInt32, Tostring
-  #  ❯ $txt_Pass | Should -Be "HelloWorld"
+  #.EXAMPLE
+  #  $enc_Pass = "HelloWorld" | xconvert ToBase32, ToObfuscated, ToSecurestring
+  #  $txt_Pass = $enc_Pass | xconvert ToString, FromObfuscated, FromBase32, ToInt32, Tostring
+  #  $txt_Pass | Should -Be "HelloWorld"
   #  Thats chaining methods
-  # .EXAMPLE
-  #  ❯ $txt = "awesome!" | xconvert ToBase32, ToObfuscated | xconvert FromObfuscated, ToUTF8str, FromBase32, ToUTF8str
-  #  ❯ $txt | Should -Be "awesome!"
+  #.EXAMPLE
+  #  $txt = "awesome!" | xconvert ToBase32, ToObfuscated | xconvert FromObfuscated, ToUTF8str, FromBase32, ToUTF8str
+  #  $txt | Should -Be "awesome!"
+  #.NOTES
+  # If you want more control you can directly use the [xconvert] class :)
   [CmdletBinding()]
   [Alias('xconvert')]
   [OutputType({ [xconvert]::ReturnTypes })]
@@ -28,17 +30,11 @@ function Invoke-Converter {
           [System.Collections.IDictionary] $FakeBoundParameters
         )
         $CompletionResults = [System.Collections.Generic.List[CompletionResult]]::new()
-        $matchingMethods = [xconvert]::Methods.Where({ $_.Name -like "$WordToComplete*" })
+        $matchingMethods = [xconvert]::Methods.Where({ $_.Name -like "$WordToComplete*" -and $_.CustomAttributes.AttributeType.Name -notContains "HiddenAttribute" })
         foreach ($method in $matchingMethods) {
           $paramst = ($method.GetParameters() | Select-Object @{l = '_'; e = { "[$($_.ParameterType.Name)]`$$($_.Name)" } })._ -join ', '
-          $toolTip = "{0}({1}) -> {2}" -f $method.Name, $paramst, $method.ReturnType.Name
-          $completionResult = [System.Management.Automation.CompletionResult]::new(
-            $method.Name, # CompletionText
-            $method.Name, # ListItemText
-            'Method',
-            $toolTip
-          )
-          $CompletionResults.Add($completionResult)
+          $toolTip = "[{0}] {1}({2})" -f $method.ReturnType.Name, $method.Name, $paramst
+          $CompletionResults.Add([System.Management.Automation.CompletionResult]::new($method.Name, $toolTip, 'Method', $toolTip))
         }
         return $CompletionResults
       })]
@@ -49,7 +45,7 @@ function Invoke-Converter {
     $object
   )
   begin {
-    $c = [xconvert]::new()
+    $convert = [xconvert]::new()
   }
   process {
     $InvalidMethods = $Method.Where({ $_ -notin [xconvert]::Methods.Name })
@@ -74,11 +70,11 @@ function Invoke-Converter {
         )
       )
     }
-    if ($object) {
-      $r = $object
-      $Method.ForEach({ $r = $c::$_($r) })
+    if ($Object) {
+      $result = $Object
+      $Method.ForEach({ $result = $convert::$_($result) })
     } else {
-      $r = $c
+      $result = $convert
     }
   }
   end {

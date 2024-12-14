@@ -1,13 +1,13 @@
 ﻿@{
   ModuleName    = 'cliHelper.xconvert'
-  ModuleVersion = [System.Management.Automation.SemanticVersion]::new(0, 1, 3)
+  ModuleVersion = [version]'0.1.5'
   ReleaseNotes  = @"
 # Changelog`n`n
 
-- Now Method Names make sense. they either start with `From` or `To`👌
-- Invoke-Converter is the only cmdlet 😊
+- Argument completer makes sense now :)
 - Easy method chaining and Pipeline stuff
 - Added argument completion for method names
+- Fixed base85
 
 `n`n***`n`n## Manual install guide`n`n
 1. [Click here](https://github.com/alainQtec/cliHelper.xconvert/releases/download/v<versionToDeploy>/cliHelper.xconvert.zip) to download the *PsImport.zip* file attached to the release.
