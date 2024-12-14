@@ -1,6 +1,6 @@
 # [![✖convert](https://github.com/user-attachments/assets/777c32d2-d5bc-4298-9ac9-38fc3e9c8ad9)](https://alainQtec.dev/clihelper-modules/xconvert)
 
-<p><b><a href="https://powershellgallery.com/packages/cliHelper.xconvert">✖convert</a></b> - version <b>0.1.5</b></p>
+<p><b><a href="https://powershellgallery.com/packages/cliHelper.xconvert">✖convert</a></b> - version <b>0.1.6</b></p>
 
 An all-in-one module to convert files and object types.
 
@@ -96,21 +96,91 @@ in powershell.
 This project is licensed under the MIT License. See the
 [ʟɪᴄᴇɴsᴇ](https://alain.MIT-license.org) file for details.
 
-## sᴘᴏɴsᴏʀ?
+<!-- ## sᴘᴏɴsᴏʀ?
 
 If this tool saves your time and you want to support me;
 <a href="https://www.paypal.com/donate/?hosted_button_id=3LA3EUKRU6722">
 <img src="https://img.shields.io/static/v1?logo=paypal&label=PayPal&logoColor=white&message=donate to alain&color=00457C"/>
 </a>
 
-[You can also share ideas, and provide feedback](https://github.com/alainQtec/cliHelper.xconvert/discussions/1).
+[You can also share ideas, and provide feedback](https://github.com/alainQtec/cliHelper.xconvert/discussions/1). -->
 
-Contributions are really welcome.
+Contributions are welcome.
 
 ⤷ This is still a **ᴡɪᴘ 🚧**. Yes its usable, but alot of cool stuff are not
 fully done.
 
-For more, checkout the [progress](./docs/Readme.md)
+- [x] Added main class (90%) 🎉.
+- [ ] New methods to xconvert class: For each method you add there should be
+      counter-method for it. There's a lot of missing methods, or new ways to do
+      things. you just have to look for them. For example:
+  - ToBase32 💱 FromBase32
+
+  You can get a quick overview by running `show-MethodsOverview`:
+
+  ```PowerShell
+  #Requires -Modules cliHelper.xconvert
+  function show-MethodsOverview() {
+    $mark = @{ True = "✅"; False = "😒"}
+    $xmethods = [xconvert].GetMethods().Where({ $_.IsStatic -and !$_.IsHideBySig }).name | Sort-Object -Unique;
+    $analysis = $xmethods | % { $_.Replace('To', "").Replace('From', "") } | Sort-Object -Unique | Select-Object @{l="Name"; e={$_} }, @{l='HasBoth'; e={ $xmethods -contains "To$_" -and $xmethods -contains "From$_" }};
+    $hasBoth = $analysis.Where({ $_.HasBoth }); $doesNotHaveBoth = $analysis.Where({ !$_.HasBoth });
+    Write-Host "`nOverview of all static methods for [xconvert]" -f Green;
+    ($hasBoth + $doesNotHaveBoth) | Select-Object Name, @{l="To"; e={ $mark[[string]($xmethods -contains "To$($_.Name)")] }}, @{l="From"; e={ $mark[[string]($xmethods -contains "From$($_.Name)")] } } | Format-Table
+  }
+  ```
+- [x] Added Private /utility classes
+- [x] Add Public function(s)
+
+  `Note`: [This module intentionally uses 1 huge main class](). _Creating all
+  functions for each method in [xconvert] might get tedious overtime_, so _only
+  functions for **Common format conversions** will be created_. **i.e**:
+  - [x] Ansi
+  - [x] ASCIIstr
+  - [x] Base32
+  - [x] Base58
+  - [x] Base64str
+  - [x] Base85
+  - [x] BitArray
+  - [x] BUnicodestr
+  - [x] Bytes
+  - [x] Caesar
+  - [x] Compressed
+  - [x] Csv
+  - [x] HexString
+  - [x] Int32
+  - [x] Latin1str
+  - [x] Obfuscated
+  - [x] Object
+  - [x] Polybius
+  - [x] Protected
+  - [x] PSObject
+  - [x] ROT13
+  - [x] Unicodestr
+  - [x] UtcDate
+  - [x] UTF32str
+  - [x] UTF7str
+  - [x] UTF8str
+  - [ ] JSON-CSV
+  - [ ] JSON-XML
+  - [ ] JSON-Log
+  - [ ] Markdown-HTML
+  - [ ] Powershell-Batch
+  - [ ] Word-Pdf (why not)
+  - [ ] Hex-RGB
+  - [ ] Bitmaps
+  - [x] Roman-Numbers
+  - [ ] SID
+  - [x] Url-encoding
+  - [ ] DecimalIPv4
+  - [ ] functions convert data type to another (string, integer, datetime ...)
+  - [x] functions to convert encodings (ASCII, UTF-8, base32 ...)
+  - [ ] Binary manipulation
+  - [ ] audio-video conversion (why not)
+  - [ ] functions to convert between visualization formats
+- [ ] Write tests for encoder/decoder utility classes (they work. trust me bro)
+
+- [ ] Add/improve a github workflows
 
 [![Contributors](https://contrib.rocks/image?repo=alainQtec/cliHelper.xconvert)](https://github.com/alainQtec/cliHelper.xconvert/graphs/contributors)
 

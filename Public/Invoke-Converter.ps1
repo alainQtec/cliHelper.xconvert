@@ -78,6 +78,6 @@ function Invoke-Converter {
     }
   }
   end {
-    return $r
+    return $result
   }
 }
