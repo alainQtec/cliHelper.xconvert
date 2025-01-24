@@ -66,7 +66,10 @@ $txt_Pass | Should -Be "HelloWorld"
 # Metal 🔥 ⚡︎ 🤘
 ```
 
-Advanced? yeah you can get nuts with this cmdlet 🤓
+Some still wip:
+
+- [Argumenttransforms](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.argumenttransformationattribute)
+  I'm planning to get nuts with them🤓
 
 <details>
   <summary><b>ғᴀᴏ̨ (‘•.•’)</b>: Why?!</summary>
