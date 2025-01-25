@@ -1204,15 +1204,20 @@ class xconvert : System.ComponentModel.TypeConverter {
   static [string] ToBUnicodestr([byte[]]$bytes) { return [Encoding]::BigEndianUnicode.GetString($bytes) }
   static [byte[]] FromBUnicodestr([string]$s) { return [Encoding]::BigEndianUnicode.GetBytes($s) }
 
-  static [guid] ToGuid([string]$text) {
-    # Creates a string that passes guid regex checks (ie: not a real guid)
-    if ($text.Trim().Length -ne 16) {
-      throw [System.InvalidOperationException]::new('$InputText.Trim().Length Should Be exactly 16. Ex: [xconvert]::ToGuid([xget]::RandomName(16))')
+  static [Guid] ToGuid([string]$text) {
+    [ValidateNotNullOrWhiteSpace()][string]$text = [string]$text
+    if ([xget]::IsValidHex($text) -and $text.Trim().Length -eq 16) {
+      # def not a coincidence, so lets try this first:
+      #ex: [xconvert]::ToGuid([xget]::RandomName(16))
+      $res = $(try { [System.Guid]::new(([byte[]] -split ($text -replace '..', '0x$& '))) } catch { $null })
+      if ($null -ne $res) { return $res }
     }
-    if ([xget]::IsValidHex($text)) {
-      return [System.Guid]::new(([byte[]] -split ($text -replace '..', '0x$& ')))
-    }
-    return [guid]::new([System.BitConverter]::ToString([Encoding]::UTF8.GetBytes($text)).Replace("-", "").ToLower().Insert(8, "-").Insert(13, "-").Insert(18, "-").Insert(23, "-"))
+    $crypt = [System.Security.Cryptography.SHA256Managed]::new()
+    $shash = [System.Text.StringBuilder]::new()
+    $c_arr = [byte[]]$crypt.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($text));
+    $c_arr.ForEach({ [void]$shash.Append($_.ToString("x2")) })
+    $s_256 = $shash.ToString().Substring(0, 32) -replace '(.{8})(.{4})(.{4})(.{4})(.{12})', '$1-$2-$3-$4-$5'
+    return [System.Guid]::new($s_256)
   }
   [string[]] ToRomanNumeral([int[]]$Numbers) {
     [ValidateRange(1, 3999)][int[]]$Numbers = $Numbers
